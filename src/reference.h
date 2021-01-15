@@ -7,7 +7,7 @@ public:
 
   ReferenceF();
 
-  virtual Eigen::VectorXd inverse_logistic(const Eigen::VectorXd& eta1) const;
+  virtual Eigen::VectorXd inverse_logistic(const Eigen::VectorXd& eta1) const ;
   virtual Eigen::MatrixXd inverse_derivative_logistic(const Eigen::VectorXd& eta) const ;
 
   virtual Eigen::VectorXd inverse_normal(const Eigen::VectorXd& eta) const;
