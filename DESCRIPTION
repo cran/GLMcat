@@ -1,6 +1,6 @@
 Package: GLMcat
 Title: Generalized Linear Models for Categorical Responses
-Version: 0.1.1
+Version: 0.2.0
 Authors@R: 
     c(person(given = "Lorena", family = "León",role = c("aut", "cre"), email = "ylorenaleonv@gmail.com"),
     person(given = "Jean", family = "Peyhardi", email = "jean.peyhardi@umontpellier.fr", role = "aut"),
@@ -17,10 +17,10 @@ Suggests: knitr, rmarkdown, testthat, dplyr, ggplot2, gridExtra,
         gtools, tidyr
 VignetteBuilder: knitr
 NeedsCompilation: yes
-Packaged: 2021-01-12 22:07:45 UTC; leonvelasco
+Packaged: 2021-03-05 18:44:51 UTC; leonvelasco
 Author: Lorena León [aut, cre],
   Jean Peyhardi [aut],
   Catherine Trottier [aut]
 Maintainer: Lorena León <ylorenaleonv@gmail.com>
 Repository: CRAN
-Date/Publication: 2021-01-16 00:50:11 UTC
+Date/Publication: 2021-03-05 19:10:02 UTC
