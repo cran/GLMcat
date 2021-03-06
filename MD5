@@ -1,4 +1,4 @@
-5c09df04d252806eaf7cc9c3b6f5e5fc *DESCRIPTION
+2b04eea81330a4d957a4d649391c2c43 *DESCRIPTION
 c2a04d63e4397e2e9ea1d53fbc55cb31 *NAMESPACE
 f52a8445827a9fa3a50e0cec4694181f *R/DisturbedDreamsDoc.R
 15b58a03683c67f929b46f6657033ec9 *R/GLMcatMethods.R
@@ -11,10 +11,10 @@ a3a962b72326a252e71e1bb1a6f6c04a *data/DisturbedDreams.rda
 cef54fec044c3c1a63b8b669b0472534 *data/TravelChoice.rda
 58191ecc3d575afaa12d0407fe6169a3 *inst/doc/Discrete_CM_examples.R
 7556bb4c81fd983599f9655de0558f39 *inst/doc/Discrete_CM_examples.Rmd
-8fd0d4acf0aaa94b8a2381e4aa9480f2 *inst/doc/Discrete_CM_examples.pdf
-8731869e0489b35acc603d2ee45ea3b2 *inst/doc/GLMcat_tutorial.R
-5f9381c4dfb154ed7c6949d7bda8aed1 *inst/doc/GLMcat_tutorial.Rmd
-7b50fb32d50b53665832b2e0a3c5b54a *inst/doc/GLMcat_tutorial.pdf
+d34c3ae47f16a9249a18c680a7cdb856 *inst/doc/Discrete_CM_examples.pdf
+29ef5cfd79653e18a6ad202e1c0718ec *inst/doc/GLMcat_tutorial.R
+a938578ce08d5b14701589a579eda90f *inst/doc/GLMcat_tutorial.Rmd
+32acb857bf68ef46e73360a4a3039f62 *inst/doc/GLMcat_tutorial.pdf
 1df6fef8c8846b231c1a30532c7fb2c5 *man/Discrete_CM.Rd
 e8eb52a74741320a51b83180ce5e3235 *man/DisturbedDreams.Rd
 8d531ddd5b582ad23a0109fd823fe6ea *man/GLMcat.Rd
@@ -40,5 +40,5 @@ c447dc0e48f0129fd6ee2ff2f71cc1e5 *src/reference.h
 6a4e6eb71c1078f81f16051e98b12b30 *src/sequentialR.cpp
 0475e744cf8b2cccfb5b5d9c0bacd8e7 *src/sequentialR.h
 7556bb4c81fd983599f9655de0558f39 *vignettes/Discrete_CM_examples.Rmd
-5f9381c4dfb154ed7c6949d7bda8aed1 *vignettes/GLMcat_tutorial.Rmd
+a938578ce08d5b14701589a579eda90f *vignettes/GLMcat_tutorial.Rmd
 1ff9a02f5d10a92d2fded37b61c2984d *vignettes/bibliography_vignette.bib

@@ -140,6 +140,7 @@ cum_log_co_e <- GLMcat(
   distribution = "logistic",
   ratio = "cumulative",
   data = DisturbedDreams,
+  proportional = "Age",
   threshold = "equidistant",
 )
 logLik(cum_log_co_e)
