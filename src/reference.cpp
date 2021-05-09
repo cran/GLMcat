@@ -1,4 +1,4 @@
-#include "distribution.h"
+#include "cdf.h"
 #include "reference.h"
 
 using namespace std;
@@ -10,7 +10,7 @@ using namespace Eigen;
 
 // [[Rcpp::depends(RcppEigen)]]
 ReferenceF::ReferenceF(void) {
-  distribution dist;
+  cdf dist;
 }
 
 Eigen::VectorXd ReferenceF::inverse_logistic(const Eigen::VectorXd& eta) const
@@ -69,25 +69,25 @@ Eigen::MatrixXd ReferenceF::inverse_derivative_normal(const Eigen::VectorXd& eta
   return D * ( Eigen::MatrixXd(pi.asDiagonal()) - pi * pi.transpose().eval() );
 }
 
-Eigen::VectorXd ReferenceF::inverse_cauchit(const Eigen::VectorXd& eta) const
+Eigen::VectorXd ReferenceF::inverse_cauchy(const Eigen::VectorXd& eta) const
 {
   Eigen::VectorXd pi( eta.size() );
   double norm1 = 1.;
   for(int j=0; j<eta.size(); ++j)
   {
-    pi[j] = Cauchit::cdf_cauchit( eta(j) ) / ( 1-Cauchit::cdf_cauchit( eta(j) ) );
+    pi[j] = Cauchy::cdf_cauchy( eta(j) ) / ( 1-Cauchy::cdf_cauchy( eta(j) ) );
     norm1 += pi[j];
   }
   return (pi/norm1);
 }
 
-Eigen::MatrixXd ReferenceF::inverse_derivative_cauchit(const Eigen::VectorXd& eta2) const
+Eigen::MatrixXd ReferenceF::inverse_derivative_cauchy(const Eigen::VectorXd& eta2) const
 {
-  Eigen::VectorXd pi1 = ReferenceF::inverse_cauchit(eta2);
+  Eigen::VectorXd pi1 = ReferenceF::inverse_cauchy(eta2);
   Eigen::MatrixXd D1 = Eigen::MatrixXd::Zero(pi1.rows(),pi1.rows());
   for(int j=0; j<eta2.rows(); ++j)
-  { D1(j,j) = pdf_cauchit( eta2(j) ) /
-    (Cauchit::cdf_cauchit(eta2(j)) * (1-Cauchit::cdf_cauchit(eta2(j))));
+  { D1(j,j) = pdf_cauchy( eta2(j) ) /
+    (Cauchy::cdf_cauchy(eta2(j)) * (1-Cauchy::cdf_cauchy(eta2(j))));
   }
   return D1 * ( Eigen::MatrixXd(pi1.asDiagonal()) - pi1 * pi1.transpose().eval() );
 }
@@ -170,14 +170,75 @@ Eigen::MatrixXd ReferenceF::inverse_derivative_student(const Eigen::VectorXd& et
   return FINAL;
 }
 
+Eigen::VectorXd ReferenceF::inverse_laplace(const Eigen::VectorXd& eta) const
+{
+  Eigen::VectorXd pi( eta.size() );
+  // Eigen::VectorXd pi_return1(eta.size());
+  Eigen::VectorXd pi_return(eta.size());
+  double norm1 = 1.;
+  for(int j=0; j<eta.size(); ++j)
+  {
+    pi[j] = cdf_laplace( eta(j) ) / ( 1-
+      std::max(1e-10, std::min(1-1e-6, cdf_laplace(eta(j))))
+    );
+    norm1 += pi[j];
+  }
+  pi_return = pi/norm1;
+  return pi_return;
+  // return pi/norm1;
+}
+
+Eigen::MatrixXd ReferenceF::inverse_derivative_laplace(const Eigen::VectorXd& eta2 ) const
+{
+  Eigen::VectorXd pi1 = ReferenceF::inverse_laplace(eta2);
+  Eigen::MatrixXd D1 = Eigen::MatrixXd::Zero(pi1.rows(),pi1.rows());
+  for(int j=0; j<eta2.rows(); ++j)
+  { D1(j,j) = pdf_laplace( eta2(j) ) /
+    ( std::max(1e-10, std::min(1-1e-6,cdf_laplace(eta2(j)))) *
+      std::max(1e-10, std::min(1-1e-6, 1-cdf_laplace(eta2(j)))) ); }
+
+  return D1 * ( Eigen::MatrixXd(pi1.asDiagonal()) - pi1 * pi1.transpose().eval() );
+}
+
+Eigen::VectorXd ReferenceF::inverse_noncentralt(const Eigen::VectorXd& eta, const double& freedom_degrees, const double& mu) const
+{
+  Eigen::VectorXd pi( eta.size() );
+  double norm1 = 1.;
+  for(int j=0; j<eta.size(); ++j)
+  {
+    double num = Noncentralt::cdf_non_central_t(eta(j),freedom_degrees, mu);
+    double den = std::max(1e-10, std::min(1-1e-6, 1 - Noncentralt::cdf_non_central_t(eta(j),freedom_degrees, mu)));
+    pi[j] = (num / den);
+    norm1 += pi[j];
+  }
+  return (pi/norm1);
+}
+
+
+Eigen::MatrixXd ReferenceF::inverse_derivative_noncentralt(const Eigen::VectorXd& eta2, const double& freedom_degrees, const double& mu) const
+{
+  Eigen::VectorXd pi1 = ReferenceF::inverse_noncentralt(eta2, freedom_degrees, mu);
+  Eigen::MatrixXd D1 = Eigen::MatrixXd::Zero(pi1.rows(),pi1.rows());
+  for(int j=0; j<eta2.rows(); ++j)
+  {
+    double num = Noncentralt::pdf_non_central_t( eta2(j) , freedom_degrees, mu);
+    double den1 = Noncentralt::cdf_non_central_t(eta2(j), freedom_degrees, mu) ;
+    double den2 = 1-Noncentralt::cdf_non_central_t(eta2(j),freedom_degrees, mu) ;
+    D1(j,j) = (num / std::max(1e-10, std::min(1-1e-6, (den1 * den2)) ));
+  }
+  Eigen::MatrixXd D3 = pi1 * (pi1.transpose());
+  Eigen::MatrixXd D2 = Eigen::MatrixXd(pi1.asDiagonal());
+  Eigen::MatrixXd FINAL = D1 * ( D2 - D3 );
+  return FINAL;
+}
 
 // RCPP_MODULE(referencemodule){
   // Rcpp::function("GLMref", &GLMref,
   //                List::create(_["formula"],
   //                             _["categories_order"],
-  //                             _["proportional"] = CharacterVector::create(NA_STRING),
+  //                             _["parallel"] = CharacterVector::create(NA_STRING),
   //                             _["data"],
-  //                             _["distribution"] = "logistic",
+  //                             _["cdf"] = "logistic",
   //                             _["freedom_degrees"] = 1),
   //                             "Reference model");
 
@@ -188,7 +249,7 @@ Eigen::MatrixXd ReferenceF::inverse_derivative_student(const Eigen::VectorXd& et
   //                             _["reference"] = R_NaN,
   //                             _["alternative_specific"] = CharacterVector::create( NA_STRING),
   //                             _["data"] = NumericVector::create( 1, NA_REAL, R_NaN, R_PosInf, R_NegInf),
-  //                             _["distribution"] = "a",
+  //                             _["cdf"] = "a",
   //                             _["freedom_degrees"] = 1.0,
   //                             _["ratio"] = "reference"),
   //                             "Discrete Choice Model");

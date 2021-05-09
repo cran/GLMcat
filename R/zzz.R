@@ -6,23 +6,19 @@
 # #' @export GLMref
 #' @export GLMcat
 #' @export Discrete_CM
-# #' @export predict_glmcat_Response
 #' @export summary.glmcat
 #' @export coef.glmcat
 #' @export nobs_glmcat
 #' @export logLik.glmcat
-#' @export predict_glmcat
-# #' @export ReferenceF
+#' @export student.glmcat
+#' @export noncentralt.glmcat
+#' @export control.glmcat
 #' @useDynLib GLMcat, .registration = TRUE
 #' @importFrom Rcpp sourceCpp
-#' @importFrom stats model.frame model.matrix as.formula pnorm printCoefmat
+#' @importFrom utils flush.console
+#' @importFrom stringr str_trim
+#' @importFrom stats pchisq add1 model.frame model.matrix as.formula pnorm printCoefmat add.scope deviance drop.scope AIC factor.scope formula terms update update.formula
 ## usethis namespace: end
 
 loadModule("GLMcatmodule", TRUE)
-loadModule("discretemodule", TRUE)
-# loadModule("discretemodule", TRUE)
-# loadModule("cumulativemodule", TRUE)
-# loadModule("exportmod", TRUE)
-# loadModule("sequentialmodule", TRUE)
-# loadModule("adjacentmodule", TRUE)
-# loadModule("referencemodule", TRUE) # predict_glmcatION
+loadModule("Discrete_CMmodule", TRUE)

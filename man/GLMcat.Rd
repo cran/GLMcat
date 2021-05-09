@@ -2,19 +2,19 @@
 % Please edit documentation in R/RcppExports.R
 \name{GLMcat}
 \alias{GLMcat}
-\title{Family of models for categorical responses (reference, adjacent, sequential and cumulative ratio)}
+\title{GLMcat}
 \usage{
 GLMcat(
   formula,
   data,
   ratio = "reference",
-  distribution = "logistic",
-  proportional = NA_character_,
+  cdf = NaN,
+  parallel = NA_character_,
   categories_order = NA_character_,
   ref_category = NA_character_,
-  freedom_degrees = NaN,
   threshold = "standard",
-  beta_init = NA_real_
+  control = NaN,
+  normalization = 1
 )
 }
 \arguments{
@@ -22,29 +22,39 @@ GLMcat(
 
 \item{data}{a dataframe object in R, with the dependent variable as factor.}
 
-\item{ratio}{a string indicating the F distribution, options are: reference, adjacent, cumulative and sequential. Default value is reference.}
+\item{ratio}{a string indicating the F cdf, options are: reference, adjacent, cumulative and sequential. Default value is reference.}
 
-\item{distribution}{a string indicating the F distribution, options are: logistic, normal, cauchit, student (any df), gompertz, gumbel.}
+\item{cdf}{\describe{
+\item{\code{cdf}:}{a string indicating the F cdf, options are: logistic, normal, cauchy, student (any df), noncentralt, gompertz, gumbel and laplace.}
+\item{\code{df}:}{an integer with the degrees of freedom of the 'cdf'}
+\item{\code{mu}:}{an integer with the mu parameter of the 'cdf'}
+}}
 
-\item{proportional}{a character vector indicating the name of the variables with a proportional effect. If variable is categorical, specify the name and the level of the variable as a string "namelevel".}
+\item{parallel}{a character vector indicating the name of the variables with a parallel effect. If variable is categorical, specify the name and the level of the variable as a string "namelevel".}
 
 \item{categories_order}{a character vector indicating the incremental order of the categories: c("a", "b", "c"); a<b<c. Alphabetical order is assumed by default. Order is relevant for adjacent, cumulative and sequential ratio.}
 
 \item{ref_category}{a string indicating the reference category. Proper option for models with reference ratio.}
 
-\item{freedom_degrees}{an optional scalar to indicate the degrees of freedom for the Student distribution.}
-
 \item{threshold}{restriction to impose on the thresholds, options are: standard, equidistant or symmetric (Valid only for the cumulative ratio).}
 
-\item{beta_init}{optional beta initialization vector.}
+\item{control}{\describe{
+\item{\code{maxit}:}{the maximum number of iterations for the Fisher scoring algorithm.}
+\item{\code{epsilon}:}{a double to change update the convergence criterion of GLMcat models.}
+\item{\code{beta_init}:}{an appropiate sized vector for the initial iteration of the algorithm.}
+}}
+
+\item{normalization}{the quantile to use for the normalization of the estimated coefficients where the logistic distribution is used as the base cumulative distribution function.}
 }
 \description{
-Family of models for categorical responses (reference, adjacent, sequential and cumulative ratio)
+Families of models for categorical responses (reference, adjacent, sequential, and cumulative ratio)
+}
+\details{
+Families of models for categorical responses
 }
 \examples{
 data(DisturbedDreams)
 ref_log_com <- GLMcat(formula = Level ~ Age, data = DisturbedDreams,
     ref_category = "Very.severe",
-    distribution = "logistic", ratio = "reference")
-
+    cdf = "logistic", ratio = "reference")
 }

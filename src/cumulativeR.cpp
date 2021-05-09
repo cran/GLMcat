@@ -1,4 +1,4 @@
-#include "distribution.h"
+#include "cdf.h"
 #include "cumulativeR.h"
 
 using namespace std;
@@ -9,7 +9,7 @@ using namespace Eigen;
 // [[Rcpp::depends(RcppEigen)]]
 
 CumulativeR::CumulativeR(void) {
-  distribution dist;
+  cdf dist;
 }
 
 Eigen::VectorXd CumulativeR::inverse_logistic(const Eigen::VectorXd& eta) const
@@ -30,12 +30,12 @@ Eigen::VectorXd CumulativeR::inverse_normal(const Eigen::VectorXd& eta) const
   return in_open_corner(ordered_pi);
 }
 
-Eigen::VectorXd CumulativeR::inverse_cauchit(const Eigen::VectorXd& eta) const
+Eigen::VectorXd CumulativeR::inverse_cauchy(const Eigen::VectorXd& eta) const
 {
   Eigen::VectorXd ordered_pi( eta.size() );
-  ordered_pi[0] = cdf_cauchit( eta(0) );
+  ordered_pi[0] = cdf_cauchy( eta(0) );
   for(int j=1; j<eta.size(); ++j)
-  { ordered_pi[j] = cdf_cauchit( eta(j) ) - cdf_cauchit( eta(j-1) ); }
+  { ordered_pi[j] = cdf_cauchy( eta(j) ) - cdf_cauchy( eta(j-1) ); }
   return in_open_corner(ordered_pi);
 }
 
@@ -87,13 +87,13 @@ Eigen::MatrixXd CumulativeR::inverse_derivative_normal(const Eigen::VectorXd& et
   return (F_1 * R);
 }
 
-Eigen::MatrixXd CumulativeR::inverse_derivative_cauchit(const Eigen::VectorXd& eta) const
+Eigen::MatrixXd CumulativeR::inverse_derivative_cauchy(const Eigen::VectorXd& eta) const
 {
   Eigen::MatrixXd R = Eigen::MatrixXd::Identity(eta.rows(), eta.rows());
   R.block(0, 1, eta.rows()-1, eta.rows()-1) -= Eigen::MatrixXd::Identity(eta.rows() -1, eta.rows()-1);
   Eigen::MatrixXd F_1 = Eigen::MatrixXd::Zero(eta.rows(),eta.rows());
   for(int j=0; j<eta.rows(); ++j)
-  { F_1(j,j) = pdf_cauchit( eta(j) ); }
+  { F_1(j,j) = pdf_cauchy( eta(j) ); }
   return (F_1 * R);
 }
 
@@ -127,12 +127,50 @@ Eigen::MatrixXd CumulativeR::inverse_derivative_gumbel(const Eigen::VectorXd& et
   return (F_1 * R);
 }
 
+Eigen::VectorXd CumulativeR::inverse_laplace(const Eigen::VectorXd& eta) const
+{
+  Eigen::VectorXd ordered_pi( eta.size() );
+  ordered_pi[0] = cdf_laplace( eta(0) );
+  for(int j=1; j<eta.size(); ++j)
+  { ordered_pi[j] = cdf_laplace( eta(j) ) -  cdf_laplace( eta(j-1) ); }
+  return in_open_corner(ordered_pi);
+}
+
+Eigen::MatrixXd CumulativeR::inverse_derivative_laplace(const Eigen::VectorXd& eta) const
+{
+  Eigen::MatrixXd R = Eigen::MatrixXd::Identity(eta.rows(), eta.rows());
+  R.block(0, 1, eta.rows()-1, eta.rows()-1) -= Eigen::MatrixXd::Identity(eta.rows() -1, eta.rows()-1);
+  Eigen::MatrixXd F_1 = Eigen::MatrixXd::Zero(eta.rows(),eta.rows());
+  for(int j=0; j<eta.rows(); ++j)
+  {F_1(j,j) =  pdf_laplace(eta(j));}
+  return (F_1 * R);
+}
+
+Eigen::VectorXd CumulativeR::inverse_noncentralt(const Eigen::VectorXd& eta, const double& freedom_degrees, const double& mu) const
+{
+  Eigen::VectorXd ordered_pi( eta.size() );
+  ordered_pi[0] = cdf_non_central_t( eta(0) , freedom_degrees, mu);
+  for(int j=1; j<eta.size(); ++j)
+  { ordered_pi[j] = cdf_non_central_t( eta(j) , freedom_degrees , mu) - cdf_non_central_t( eta(j-1) , freedom_degrees , mu); }
+  return in_open_corner(ordered_pi);
+}
+
+Eigen::MatrixXd CumulativeR::inverse_derivative_noncentralt(const Eigen::VectorXd& eta,const double& freedom_degrees, const double& mu) const
+{
+  Eigen::MatrixXd R = Eigen::MatrixXd::Identity(eta.rows(), eta.rows());
+  R.block(0, 1, eta.rows()-1, eta.rows()-1) -= Eigen::MatrixXd::Identity(eta.rows() -1, eta.rows()-1);
+  Eigen::MatrixXd F_1 = Eigen::MatrixXd::Zero(eta.rows(),eta.rows());
+  for(int j=0; j<eta.rows(); ++j)
+  { F_1(j,j) = pdf_non_central_t( eta(j) , freedom_degrees, mu); }
+  return (F_1 * R);
+}
+
 // // [[Rcpp::export("GLMcum")]]
 // List GLMcum(Formula formula,
 //             CharacterVector categories_order,
-//             CharacterVector proportional,
+//             CharacterVector parallel,
 //             DataFrame data,
-//             std::string distribution,
+//             std::string cdf,
 //             double freedom_degrees,
 //             Eigen::VectorXd beta_init,
 //             std::string threshold){
@@ -141,14 +179,14 @@ Eigen::MatrixXd CumulativeR::inverse_derivative_gumbel(const Eigen::VectorXd& et
 //     Rcpp::stop("Unrecognized threshold restriction; options are: standard and equidistant");
 //   }
 //
-//   class distribution dist_cum;
+//   class cdf dist_cum;
 //
 //   std::string ratio = "cumulative";
 //
 //   const int N = data.nrows() ; // Number of observations
 //   List Full_M = dist_cum.All_pre_data_or(formula, data,
 //                                          categories_order,
-//                                          proportional,
+//                                          parallel,
 //                                          threshold, ratio);
 //
 //   Eigen::MatrixXd Y_init = Full_M["Response_EXT"];
@@ -160,7 +198,7 @@ Eigen::MatrixXd CumulativeR::inverse_derivative_gumbel(const Eigen::VectorXd& et
 //
 //   int P_c = explanatory_complete.length();
 //   int P_p = 0;
-//   if(proportional[0] != "NA"){P_p = proportional.length();}
+//   if(parallel[0] != "NA"){P_p = parallel.length();}
 //   // if(threshold == "equidistant"){P_p = P_p + 2;}
 //
 //   int Q = Y_init.cols();
@@ -213,27 +251,27 @@ Eigen::MatrixXd CumulativeR::inverse_derivative_gumbel(const Eigen::VectorXd& et
 //
 //       CumulativeR cum;
 //
-//       // Vector pi depends on selected distribution
-//       if(distribution == "logistic"){
+//       // Vector pi depends on selected cdf
+//       if(cdf == "logistic"){
 //         pi = cum.inverse_logistic(eta);
 //         D = cum.inverse_derivative_logistic(eta);
-//       }else if(distribution == "normal"){
+//       }else if(cdf == "normal"){
 //         pi = cum.inverse_normal(eta);
 //         D = cum.inverse_derivative_normal(eta);
-//       }else if(distribution == "cauchit"){
-//         pi = cum.inverse_cauchit(eta);
-//         D = cum.inverse_derivative_cauchit(eta);
-//       }else if(distribution == "gompertz"){
+//       }else if(cdf == "cauchy"){
+//         pi = cum.inverse_cauchy(eta);
+//         D = cum.inverse_derivative_cauchy(eta);
+//       }else if(cdf == "gompertz"){
 //         pi = cum.inverse_gompertz(eta);
 //         D = cum.inverse_derivative_gompertz(eta);
-//       }else if(distribution == "student"){
+//       }else if(cdf == "student"){
 //         pi = cum.inverse_student(eta,freedom_degrees);
 //         D = cum.inverse_derivative_student(eta,freedom_degrees);
-//       }else if(distribution == "gumbel"){
+//       }else if(cdf == "gumbel"){
 //         pi = cum.inverse_gumbel(eta);
 //         D = cum.inverse_derivative_gumbel(eta);
 //       }else{
-//         Rcpp::stop("Unrecognized distribution; options are: logistic, normal, cauchit, gumbel, gompertz, and student(df)");
+//         Rcpp::stop("Unrecognized cdf; options are: logistic, normal, cauchy, gumbel, gompertz, and student(df)");
 //       }
 //
 //       Cov_i = Eigen::MatrixXd(pi.asDiagonal()) - (pi*pi.transpose());
@@ -294,7 +332,7 @@ Eigen::MatrixXd CumulativeR::inverse_derivative_gumbel(const Eigen::VectorXd& et
 //     }
 //     if(P_p>0){ // hay alguna proporcional
 //       for(int var = 0 ; var < P_p ; var++){
-//         names1[ind_name] = proportional[var];
+//         names1[ind_name] = parallel[var];
 //         ind_name = ind_name + 1;
 //       }
 //     }
@@ -309,8 +347,8 @@ Eigen::MatrixXd CumulativeR::inverse_derivative_gumbel(const Eigen::VectorXd& et
 //       }
 //     }
 //     if(P_p > 0){
-//       for(int var_p = 0 ; var_p < proportional.size() ; var_p++){
-//         names1[(Q*P_c) + var_p] = proportional[var_p];
+//       for(int var_p = 0 ; var_p < parallel.size() ; var_p++){
+//         names1[(Q*P_c) + var_p] = parallel[var_p];
 //       }
 //     }
 //     names = names1;
@@ -387,10 +425,10 @@ Eigen::MatrixXd CumulativeR::inverse_derivative_gumbel(const Eigen::VectorXd& et
 //     // Named("LogLikIter") = LogLikIter,
 //     Named("formula") = formula,
 //     Named("categories_order") = categories_order,
-//     Named("proportional") = proportional,
+//     Named("parallel") = parallel,
 //     Named("N_cats") = N_cats,
 //     Named("nobs_glmcat") = N,
-//     Named("distribution") = distribution,
+//     Named("cdf") = cdf,
 //     Named("freedom_degrees") = freedom_degrees
 //   );
 //
@@ -402,9 +440,9 @@ Eigen::MatrixXd CumulativeR::inverse_derivative_gumbel(const Eigen::VectorXd& et
 //   Rcpp::function("GLMcum", &GLMcum,
 //                  List::create(_["formula"],
 //                               _["categories_order"] = CharacterVector::create(NA_STRING),
-//                               _["proportional"] = CharacterVector::create(NA_STRING),
+//                               _["parallel"] = CharacterVector::create(NA_STRING),
 //                               _["data"],
-//                                _["distribution"] = "logistic",
+//                                _["cdf"] = "logistic",
 //                                _["freedom_degrees"] = 1.0,
 //                                _["beta_init"] = NumericVector::create(1),
 //                                _["threshold"] = "standard"

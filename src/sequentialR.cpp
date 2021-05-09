@@ -1,4 +1,4 @@
-#include "distribution.h"
+#include "cdf.h"
 #include "sequentialR.h"
 using namespace std;
 using namespace Rcpp ;
@@ -6,7 +6,7 @@ using namespace Rcpp ;
 // [[Rcpp::depends(RcppEigen)]]
 
 SequentialR::SequentialR(void) {
-  distribution dist;
+  cdf dist;
 }
 
 Eigen::VectorXd SequentialR::inverse_logistic(const Eigen::VectorXd& eta) const
@@ -61,28 +61,28 @@ Eigen::MatrixXd SequentialR::inverse_derivative_normal(const Eigen::VectorXd& et
   return M;
 }
 
-Eigen::VectorXd SequentialR::inverse_cauchit(const Eigen::VectorXd& eta) const
+Eigen::VectorXd SequentialR::inverse_cauchy(const Eigen::VectorXd& eta) const
 {
   Eigen::VectorXd ordered_pi( eta.size() );
   double product = 1;
   for(int j=0; j<eta.size(); ++j)
   {
-    ordered_pi[j] = product * cdf_cauchit( eta(j) );
-    product *= ( 1 - cdf_cauchit( eta(j) ) );
+    ordered_pi[j] = product * cdf_cauchy( eta(j) );
+    product *= ( 1 - cdf_cauchy( eta(j) ) );
   }
   return in_open_corner(ordered_pi);
 }
 
-Eigen::MatrixXd SequentialR::inverse_derivative_cauchit(const Eigen::VectorXd& eta) const
+Eigen::MatrixXd SequentialR::inverse_derivative_cauchy(const Eigen::VectorXd& eta) const
 {
   Eigen::MatrixXd M = Eigen::MatrixXd::Zero(eta.rows(),eta.rows());
   double product = 1.;
   for (int j=0; j < eta.rows(); ++j)
   {
-    M(j,j) = pdf_cauchit(eta(j)) * product;
+    M(j,j) = pdf_cauchy(eta(j)) * product;
     for (int i=0; i<j; ++i)
-    { M(i,j) = - pdf_cauchit(eta(i))  * std::max(1e-10, std::min(cdf_cauchit(eta(j)), 1-1e-6)) * product / std::max(1e-10, std::min( 1-cdf_cauchit(eta(i)), 1-1e-6)); }
-    product *= std::max(1e-10, std::min( 1-cdf_cauchit(eta(j)), 1-1e-6));
+    { M(i,j) = - pdf_cauchy(eta(i))  * std::max(1e-10, std::min(cdf_cauchy(eta(j)), 1-1e-6)) * product / std::max(1e-10, std::min( 1-cdf_cauchy(eta(i)), 1-1e-6)); }
+    product *= std::max(1e-10, std::min( 1-cdf_cauchy(eta(j)), 1-1e-6));
   }
   return M;
 }
@@ -165,21 +165,72 @@ Eigen::MatrixXd SequentialR::inverse_derivative_student(const Eigen::VectorXd& e
   return M;
 }
 
+Eigen::VectorXd SequentialR::inverse_laplace(const Eigen::VectorXd& eta) const
+{
+  Eigen::VectorXd ordered_pi( eta.size() );
+  double product = 1;
+  for(int j=0; j<eta.size(); ++j)
+  {
+    ordered_pi[j] = product * Laplace::cdf_laplace( eta(j) );
+    product *= ( 1 - Laplace::cdf_laplace( eta(j) ) );
+  }
+  return in_open_corner(ordered_pi);
+}
 
-// distribution dist_seq;
+Eigen::MatrixXd SequentialR::inverse_derivative_laplace(const Eigen::VectorXd& eta) const
+{
+  Eigen::MatrixXd M = Eigen::MatrixXd::Zero(eta.rows(),eta.rows());
+  double product = 1.;
+  for (int j=0; j < eta.rows(); ++j)
+  {
+    M(j,j) = Laplace::pdf_laplace(eta(j)) * product;
+    for (int i=0; i<j; ++i)
+    { M(i,j) = - Laplace::pdf_laplace(eta(i))  * std::max(1e-10, std::min(Laplace::cdf_laplace(eta(j)), 1-1e-6)) * product / std::max(1e-10, std::min( 1-Laplace::cdf_laplace(eta(i)), 1-1e-6)); }
+    product *= std::max(1e-10, std::min( 1-Laplace::cdf_laplace(eta(j)), 1-1e-6));
+  }
+  return M;
+}
+
+Eigen::VectorXd SequentialR::inverse_noncentralt(const Eigen::VectorXd& eta, const double& freedom_degrees,const double& mu) const
+{
+  Eigen::VectorXd ordered_pi( eta.size() );
+  double product = 1;
+  for(int j=0; j<eta.size(); ++j)
+  {
+    ordered_pi[j] = product * cdf_non_central_t( eta(j) ,freedom_degrees,mu);
+    product *= ( 1 - cdf_non_central_t( eta(j) ,freedom_degrees,mu) );
+  }
+  return in_open_corner(ordered_pi);
+}
+
+Eigen::MatrixXd SequentialR::inverse_derivative_noncentralt(const Eigen::VectorXd& eta, const double& freedom_degrees,const double& mu) const
+{
+  Eigen::MatrixXd M = Eigen::MatrixXd::Zero(eta.rows(),eta.rows());
+  double product = 1.;
+  for (int j=0; j < eta.rows(); ++j)
+  {
+    M(j,j) = pdf_non_central_t(eta(j),freedom_degrees,mu) * product;
+    for (int i=0; i<j; ++i)
+    { M(i,j) = - pdf_non_central_t(eta(i),freedom_degrees,mu)  * std::max(1e-10, std::min(cdf_non_central_t(eta(j),freedom_degrees,mu), 1-1e-6)) * product / std::max(1e-10, std::min( 1-cdf_non_central_t(eta(i),freedom_degrees,mu), 1-1e-6)); }
+    product *= std::max(1e-10, std::min( 1-cdf_non_central_t(eta(j),freedom_degrees,mu), 1-1e-6));
+  }
+  return M;
+}
+
+// cdf dist_seq;
 //
 // // [[Rcpp::export]]
 // List GLMseq(Formula formula,
 //             CharacterVector categories_order,
-//             CharacterVector proportional,
+//             CharacterVector parallel,
 //             DataFrame data,
-//             std::string distribution,
+//             std::string cdf,
 //             double freedom_degrees){
 //
 //   const int N = data.nrows() ; // Number of observations
 //
 //   List Full_M = dist_seq.All_pre_data_or(formula, data,
-//                                       categories_order, proportional);
+//                                       categories_order, parallel);
 //
 //   Eigen::MatrixXd Y_init = Full_M["Response_EXT"];
 //   Eigen::MatrixXd X_EXT = Full_M["Design_Matrix"];
@@ -188,7 +239,7 @@ Eigen::MatrixXd SequentialR::inverse_derivative_student(const Eigen::VectorXd& e
 //
 //   int P_c = explanatory_complete.length();
 //   int P_p = 0;
-//   if(proportional[0] != "NA"){P_p = proportional.length();}
+//   if(parallel[0] != "NA"){P_p = parallel.length();}
 //   int P =  P_c +  P_p ; // Number of explanatory variables without intercept
 //
 //   int Q = Y_init.cols();
@@ -235,17 +286,17 @@ Eigen::MatrixXd SequentialR::inverse_derivative_student(const Eigen::VectorXd& e
 //       eta = X_M_i * BETA;
 //
 //       SequentialR seq;
-//       // Vector pi depends on selected distribution
-//       if(distribution == "logistic"){
+//       // Vector pi depends on selected cdf
+//       if(cdf == "logistic"){
 //         pi = seq.inverse_logistic(eta);
 //         D = seq.inverse_derivative_logistic(eta);
-//       }else if(distribution == "normal"){
+//       }else if(cdf == "normal"){
 //         pi = seq.inverse_normal(eta);
 //         D = seq.inverse_derivative_normal(eta);
-//       }else if(distribution == "cauchit"){
-//         pi = seq.inverse_cauchit(eta);
-//         D = seq.inverse_derivative_cauchit(eta);
-//       }else if(distribution == "gompertz"){
+//       }else if(cdf == "cauchy"){
+//         pi = seq.inverse_cauchy(eta);
+//         D = seq.inverse_derivative_cauchy(eta);
+//       }else if(cdf == "gompertz"){
 //         pi = seq.inverse_gompertz(eta);
 //         D = seq.inverse_derivative_gompertz(eta);
 //       }
@@ -291,8 +342,8 @@ Eigen::MatrixXd SequentialR::inverse_derivative_student(const Eigen::VectorXd& e
 //     }
 //   }
 //   if(P_p > 0){
-//     for(int var_p = 0 ; var_p < proportional.size() ; var_p++){
-//       names[(Q*P_c) + var_p] = proportional[var_p];
+//     for(int var_p = 0 ; var_p < parallel.size() ; var_p++){
+//       names[(Q*P_c) + var_p] = parallel[var_p];
 //     }
 //   }
 //
@@ -362,9 +413,9 @@ Eigen::MatrixXd SequentialR::inverse_derivative_student(const Eigen::VectorXd& e
 //   Rcpp::function("GLMseq", &GLMseq,
 //                  List::create(_["formula"] = R_NaN,
 //                               _["categories_order"] = CharacterVector::create( "A", NA_STRING),
-//                               _["proportional"] = CharacterVector::create(NA_STRING),
+//                               _["parallel"] = CharacterVector::create(NA_STRING),
 //                               _["data"] = NumericVector::create( 1, NA_REAL, R_NaN, R_PosInf, R_NegInf),
-//                               _["distribution"] = "a",
+//                               _["cdf"] = "a",
 //                               _["freedom_degrees"] = 1.0),
 //                               "Sequential model");
 //   Rcpp::class_<SequentialR>("SequentialR")

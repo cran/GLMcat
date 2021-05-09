@@ -4,16 +4,18 @@
 \name{DisturbedDreams}
 \alias{DisturbedDreams}
 \title{Severity of disturbed dreams}
-\format{A dataframe containing :
+\format{
+A dataframe containing :
 \describe{
 \item{Age}{Individuals age}
 \item{Level}{Severity level: Not.severe, Severe.1, Severe.2, Very.severe.}
-}}
+}
+}
 \usage{
 data(DisturbedDreams)
 }
 \description{
-$Boy's disturbed dreams$ benchmark dataset drawn from a study that cross-classified boys by their age, and the severity (not severe, severe 1, severe 2, very severe) of their disturbed dreams (Maxwell, 1961).
+Boy's disturbed dreams benchmark dataset drawn from a study that cross-classified boys by their age, and the severity (not severe, severe 1, severe 2, very severe) of their disturbed dreams (Maxwell, 1961).
 }
 \examples{
 data(DisturbedDreams)

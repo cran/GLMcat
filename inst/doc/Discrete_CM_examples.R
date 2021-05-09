@@ -15,7 +15,7 @@ exp_8.4 <- Discrete_CM(
   reference = "air",
   data = TravelChoice,
   alternative_specific = c("gc", "invt"),
-  distribution = "logistic")
+  cdf = "logistic")
 summary(exp_8.4)
 
 ## -----------------------------------------------------------------------------
@@ -25,7 +25,7 @@ summary(exp_8.4)
   alternatives = "mode",
   reference = c("air", "train", "bus", "car"),
   data = TravelChoice,
-  distribution = "logistic"
+  cdf = "logistic"
 ))
 
 (car_0 <- Discrete_CM(
@@ -35,7 +35,7 @@ summary(exp_8.4)
   reference = c("air", "train", "bus", "car"),
   alternative_specific = c("gc", "ttme"),
   data = TravelChoice,
-  distribution = "logistic"
+  cdf = "logistic"
 ))
 
 ## -----------------------------------------------------------------------------
@@ -46,7 +46,7 @@ mod_1 <- Discrete_CM(
   reference = "air",
   alternative_specific = c("gc", "ttme"),
   data = TravelChoice,
-  distribution = "logistic"
+  cdf = "logistic"
 )
 logLik(mod_1)
 
@@ -58,8 +58,7 @@ mod_2 <- Discrete_CM(
   reference = "bus",
   alternative_specific = c("gc", "ttme"),
   data = TravelChoice,
-  distribution = "student",
-  freedom_degrees = 30
+  cdf = student.glmcat(df = 30)
 )
 logLik(mod_2)
 
@@ -71,8 +70,7 @@ mod_3 <- Discrete_CM(
   reference = "car",
   alternative_specific = c("gc", "ttme"),
   data = TravelChoice,
-  distribution = "student",
-  freedom_degrees = 0.2
+  cdf = student.glmcat(df = 0.2)
 )
 logLik(mod_3)
 
@@ -84,8 +82,7 @@ mod_4 <- Discrete_CM(
   reference = "train",
   alternative_specific = c("gc", "ttme"),
   data = TravelChoice,
-  distribution = "student",
-  freedom_degrees = 1.35
+  cdf = student.glmcat(df = 1.35)
 )
 logLik(mod_4)
 

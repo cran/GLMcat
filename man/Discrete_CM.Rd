@@ -2,7 +2,7 @@
 % Please edit documentation in R/RcppExports.R
 \name{Discrete_CM}
 \alias{Discrete_CM}
-\title{Family of models for Discrete Choice}
+\title{Discrete_CM}
 \usage{
 Discrete_CM(
   formula = NaN,
@@ -11,9 +11,10 @@ Discrete_CM(
   reference = NaN,
   alternative_specific = NA_character_,
   data = c(1, NA, NaN, Inf, -Inf),
-  distribution = "a",
-  freedom_degrees = 1,
-  intercept = "standard"
+  cdf = NaN,
+  intercept = "standard",
+  normalization = 1,
+  control = NaN
 )
 }
 \arguments{
@@ -27,13 +28,23 @@ Discrete_CM(
 
 \item{alternative_specific}{a character vector with the name of the explanatory variables that are different for each case, these are the alternative specific variables. By default, the case specific variables are the explanatory variables that are not identify in here, but that are part of the formula.}
 
-\item{data}{a dataframe object in R, with the dependent variable as factor.}
+\item{data}{a dataframe (in a long format) object in R, with the dependent variable as factor.}
 
-\item{distribution}{a string indicating the F distribution, options are: logistic, normal, cauchit, student (any df), gompertz, gumbel.}
-
-\item{freedom_degrees}{an optional scalar to indicate the degrees of freedom for the Student distribution.}
+\item{cdf}{\describe{
+\item{\code{cdf}:}{a string indicating the F cdf, options are: logistic, normal, cauchy, student (any df), noncentralt, gompertz, gumbel and laplace.}
+\item{\code{df}:}{an integer with the degrees of freedom of the 'cdf'}
+\item{\code{mu}:}{an integer with the mu parameter of the 'cdf'}
+}}
 
 \item{intercept}{if "conditional" then the design will be equivalent to the conditional logit model}
+
+\item{normalization}{the quantile to use for the normalization of the estimated coefficients where the logistic distribution is used as the base cumulative distribution function.}
+
+\item{control}{\describe{
+\item{\code{maxit}:}{the maximum number of iterations for the Fisher scoring algorithm.}
+\item{\code{epsilon}:}{a double with to fix the epsilon value}
+\item{\code{beta_init}:}{an appropiate sized vector for the initial iteration of the algorithm}
+}}
 }
 \description{
 Discrete choice model: Requires data in long form.
@@ -43,6 +54,9 @@ We call the group of observations for an individual a “case”.
 Each case represents a single statistical observation although it comprises
 multiple observations.
 }
+\details{
+Family of models for Discrete Choice
+}
 \note{
 For these models it is not allowed to exclude the intercept.
 }
@@ -50,7 +64,7 @@ For these models it is not allowed to exclude the intercept.
 library(GLMcat)
 data(TravelChoice)
 Discrete_CM(formula = choice ~ hinc + gc + invt,
-case_id = "indv",alternatives = "mode",reference = "air",
+case_id = "indv",alternatives = "mode", reference = "air",
 data = TravelChoice,  alternative_specific = c("gc", "invt"),
-distribution = "logistic")
+cdf = "logistic")
 }
