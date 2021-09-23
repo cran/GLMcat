@@ -2,15 +2,19 @@
 % Please edit documentation in R/GLMcatMethods.R
 \name{summary.glmcat}
 \alias{summary.glmcat}
-\title{Summary of models}
+\title{Summary method for a fitted \code{glmcat} model object}
 \usage{
-\method{summary}{glmcat}(object, ...)
+\method{summary}{glmcat}(object, normalized = FALSE, correlation = FALSE, ...)
 }
 \arguments{
-\item{object}{a GLMcat model}
+\item{object}{an fitted object of class \code{glmcat}.}
+
+\item{normalized}{if \code{normalized} is \code{TRUE} summary method yields the normalized coefficients.}
+
+\item{correlation}{TRUE to print the Correlation Matrix.}
 
 \item{...}{additional arguments affecting the summary produced.}
 }
 \description{
-\code{summary} method for GLMcat objects.
+Summary method for a fitted \code{glmcat} model object.
 }

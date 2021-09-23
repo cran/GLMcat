@@ -71,6 +71,7 @@ NumericMatrix to_dummy1(NumericVector A, CharacterVector levels)
   return B_Ma;
 }
 
+// [[Rcpp::export("Model_Matrix_or")]]
 List Model_Matrix_or(DataFrame data, Formula formula) {
   Environment stats_env("package:stats");
   Environment base_env("package:base");
@@ -105,9 +106,12 @@ List Model_Matrix_or(DataFrame data, Formula formula) {
   // factor_var = factor_var[var_int];
   CharacterVector factor_var = var_int[factor_var1];
   // Rcout << "factor_var" << std::endl;
-  // Rcout << factor_var << std::endl;
+  // Rcout << df_new << std::endl;
 
   NumericMatrix df_new = model_matrix(df_new1, _["data"] = df_new1);
+
+  // Rcout << df_new << std::endl;
+
   return List::create(
     Named("df_new") = df_new,
     Named("Response") = Response,
@@ -225,30 +229,41 @@ List cdf::All_pre_data_or(Formula formula,
   // Now order dataset with respect to the repsonse variables in the given order
   DataFrame df_tans = my_transpose(Design);
   DataFrame df_tans_2 = Design ;
-  NumericVector order_var_sel = my_order(df_tans_2[0]);
-  order_var_sel = order_var_sel - 1 ;
-  df_tans = df_tans[order_var_sel];
+  // NumericVector order_var_sel = my_order(df_tans_2[0]);
+  // order_var_sel = order_var_sel - 1 ;
+  // df_tans = df_tans[order_var_sel];
   df_tans_2 = my_transpose(df_tans);
   CharacterVector Levels = Cat_ref_or_L["levels"];
   int N_cats = Levels.length();
 
   // Rcout << "is_na_ref2" << std::endl;
 
-  LogicalVector any_alternative_specific = !is_na(parallel_effect); // TRUE IF THERE ARE
+
   CharacterVector colnames_final_m = df_tans_2.names();
   CharacterVector factor_var = M_matrix["factor_var"];
   CharacterVector covariates_names = M_matrix["covariates_names"];
 
+  LogicalVector any_alternative_specific = is_na(parallel_effect); // TRUE IF NA
 
-  // Rcout << colnames_final_m << std::endl;
-  if(parallel_effect[0] == "TRUE" && (parallel_effect.size() ==1)){
+  // Rcout << any_alternative_specific << std::endl;
+  // Rcout << parallel_effect << std::endl;
+
+  // Assume parallel design
+  if((parallel_effect[0] == "TRUE" || parallel_effect[0] == "NA") && (parallel_effect.size() == 1)){
+    // Rcout << parallel_effect.size() << std::endl;
+    // if(parallel_effect[0] == "TRUE" && (parallel_effect.size() ==1)){
     parallel_effect = colnames_final_m;
     parallel_effect.erase(0);
     parallel_effect.erase(0);
     // Rcout << parallel_effect << std::endl;
+  }else if(parallel_effect[0] == "FALSE" && (parallel_effect.size() ==1)){ // Explicit complete design
+    parallel_effect = CharacterVector::create(NA_STRING);
+    // Rcout << parallel_effect << std::endl;
   }
-  // Rcout << parallel_effect << std::endl;
+
   // Rcout << factor_var << std::endl;
+
+  any_alternative_specific = !is_na(parallel_effect); // TRUE IF THERE ARE
 
   CharacterVector parallel_effect1 = parallel_effect;
   int con = 0;
@@ -692,6 +707,9 @@ List formula_entry(Formula formula1){
   DataFrame Var_alt1 = Var_alt;
 
   DataFrame Var_alt2 = DataFrame::create(Named("Alternatives") = Alternatives, Named("Vars") = Vars);
+
+  // Rcout << formula2 << std::endl;
+
   return List::create(
     Named("Var_alt") = Var_alt,
     Named("Response") = res,
@@ -747,7 +765,8 @@ List Sort_DataFrame(DataFrame ModelMatrix,
                     DataFrame InputData,
                     CharacterVector names,
                     String Choice_vec,
-                    CharacterVector Ref_cat) {
+                    CharacterVector Ref_cat,
+                    String predict) {
   // Order DATAFRAME ACCORDING TO VARIABLES GIVEN IN VECTOR NAMES
   // CBIND OF DATA SETS AND THEN ORDER ACCORDING TO VARIABLES
   Environment base_env("package:base");
@@ -777,9 +796,13 @@ List Sort_DataFrame(DataFrame ModelMatrix,
     String var = names1(i);
     NumericVector order_var_sel = my_order(df_tans_2[var]);
     order_var_sel = order_var_sel - 1 ;
-    df_tans = df_tans[order_var_sel];
+    // # para el predict
+    if(predict != "predict"){
+      df_tans = df_tans[order_var_sel];
+    }
     df_tans_2 = my_transpose(df_tans);
   }
+
   return List::create(
     _["df_tans_2"] = df_tans_2,
     _["Levels"] = Levels
@@ -815,7 +838,8 @@ List All_pre_data(Formula formula,
                   DataFrame input_data,
                   CharacterVector var_informatives,
                   String choice,
-                  CharacterVector Ref_cat){
+                  CharacterVector Ref_cat,
+                  String predict){
 
   // print(formula_entry(formula)["formula_model"]);
   // print(head1(Model_Matrix(input_data, formula_entry(formula)["formula_model"])));
@@ -825,7 +849,8 @@ List All_pre_data(Formula formula,
     input_data,
     var_informatives,
     choice,
-    Ref_cat);
+    Ref_cat,
+    predict);
 
   SEXP MA1 = Out_SM["df_tans_2"];
   CharacterVector Levels = Out_SM["Levels"];
@@ -1072,8 +1097,8 @@ List Extend_Response(DataFrame Final_mat ){
   Eigen::MatrixXd Y_n2 = as<Eigen::Map<Eigen::MatrixXd> >(Y_Ext1-1);
   // Eigen::MatrixXd Y_n2 = as<Eigen::Map<Eigen::MatrixXd> >(Y_Ext1);
   Y_n2.conservativeResize(Y_n2.rows(), Y_n2.cols() - 1);
-  Rcout << "Y_n2" << std::endl;
-  Rcout << Y_n2 << std::endl;
+  // Rcout << "Y_n2" << std::endl;
+  // Rcout << Y_n2 << std::endl;
 
   return List::create(
     Named("N_cat") = N_cat,
@@ -1087,7 +1112,8 @@ List cdf::select_data_nested(Formula formula,
                              CharacterVector ref_cat,
                              CharacterVector var_alt_specific,
                              DataFrame input_data,
-                             String intercept
+                             String intercept,
+                             String predict
                                //   ,
                                // String ad_or_ref
 ) {
@@ -1114,7 +1140,8 @@ List cdf::select_data_nested(Formula formula,
                                 input_data,
                                 var_informatives,
                                 Response,
-                                ref_cat);
+                                ref_cat,
+                                predict);
 
   SEXP MA1 = Final_mat["data_output"];;
   DataFrame MA11 = Rcpp::as<DataFrame>(MA1);
@@ -1226,6 +1253,13 @@ double Logistic::cdf_logit(const double& value) const
   boost::math::logistic dist(0., 1.);
   return boost::math::cdf(dist, value);
 }
+
+double Logistic::cdf_logit_complement(const double& value) const
+{
+  boost::math::logistic dist(0., 1.);
+  return boost::math::cdf(complement(dist, value));
+}
+
 double Logistic::pdf_logit(const double& value) const
 {
   boost::math::logistic dist(0., 1.);
@@ -1251,6 +1285,11 @@ double Normal::cdf_normal(const double& value) const
 {
   boost::math::normal norm;
   return boost::math::cdf(norm, value);
+}
+double Normal::cdf_normal_complement(const double& value) const
+{
+  boost::math::normal norm;
+  return boost::math::cdf(complement(norm, value));
 }
 double Normal::pdf_normal(const double& value) const
 {
@@ -1278,6 +1317,13 @@ double Cauchy::cdf_cauchy(const double& value) const
   double _scale = 1.0;
   boost::math::cauchy_distribution<> extreme_value(_location, _scale);
   return boost::math::cdf(extreme_value, value);
+}
+double Cauchy::cdf_cauchy_complement(const double& value) const
+{
+  double _location = 0.0;
+  double _scale = 1.0;
+  boost::math::cauchy_distribution<> extreme_value(_location, _scale);
+  return boost::math::cdf(complement(extreme_value, value));
 }
 double Cauchy::pdf_cauchy(const double& value) const
 {
@@ -1352,6 +1398,13 @@ double Gumbel::cdf_gumbel(const double& value) const
   boost::math::extreme_value_distribution<> extreme_value(_location, _scale);
   return boost::math::cdf(extreme_value, value);
 }
+double Gumbel::cdf_gumbel_complement(const double& value) const
+{
+  double _location = 0.0;
+  double _scale =1.0;
+  boost::math::extreme_value_distribution<> extreme_value(_location, _scale);
+  return boost::math::cdf(complement(extreme_value, value));
+}
 double Gumbel::pdf_gumbel(const double& value) const
 {
   double _location = 0.0;
@@ -1372,20 +1425,34 @@ Gompertz::Gompertz(void) {
 }
 
 double Gompertz::pdf_gompertz(const double& value) const
-{ double _mu = 0.0;
-  double _sigma = 1.0;
+{
+  // double _mu = 0.0;
+  // double _sigma = 1.0;
 
-  return (exp((value - _mu)/ _sigma) *  exp( - exp ((value - _mu)/ _sigma) ) ) / _sigma ; }
+  // return exp(1+value-exp(value)) ; }
+  // return exp(value-(exp(value)-1)) ; }
+  // return exp(value)*( exp(-(exp(value)-1)) ) ; }
+  return (exp(value-exp(value))) ; }
 
+// double Gompertz::cdf_gompertz(const double& value) const
+// {
+//   double _location = 0.0;
+//   double _scale =1.0;
+//   boost::math::extreme_value_distribution<> extreme_value(_location, _scale);
+//   return boost::math::cdf(complement(extreme_value, -value));
+// }
 double Gompertz::cdf_gompertz(const double& value) const
-{ double _mu = 0.0;
-  double _sigma = 1.0;
-  return  1 - exp( - exp((value - _mu) / _sigma) ); }
+{
+  // double _mu = 0.0;
+  // double _sigma = 1.0;
+  // return  1 - exp(-(exp(value)-1)); }
+  return(1-exp(-exp(value)));}
 
 double Gompertz::qdf_gompertz(const double& value) const
-{ double _mu = 0.0;
-  double _sigma = 1.0;
-  return  _mu + _sigma * log( -log(1-value)); }
+{
+  // double _mu = 0.0;
+  // double _sigma = 1.0;
+  return  log( -log(1-value)); }
 
 Laplace::Laplace(void) {
   // Rcout << "Laplace is being created" << endl;
@@ -1400,6 +1467,10 @@ double Laplace::pdf_laplace(const double& value) const
 double Laplace::cdf_laplace(const double& value) const
 { boost::math::laplace dist(0., 1.);
   return boost::math::cdf(dist, value);
+}
+double Laplace::cdf_laplace_complement(const double& value) const
+{ boost::math::laplace dist(0., 1.);
+  return boost::math::cdf(complement(dist, value));
 }
 
 double Laplace::qdf_laplace(const double& value) const
@@ -1420,6 +1491,10 @@ double Noncentralt::pdf_non_central_t(const double& value, const double& freedom
 double Noncentralt::cdf_non_central_t(const double& value, const double& freedom_degrees, const double& non_centrality) const
 { boost::math::non_central_t dist(freedom_degrees, non_centrality);
   return boost::math::cdf(dist, value);
+}
+double Noncentralt::cdf_non_central_t_complement(const double& value, const double& freedom_degrees, const double& non_centrality) const
+{ boost::math::non_central_t dist(freedom_degrees, non_centrality);
+  return boost::math::cdf(complement(dist, value));
 }
 
 double Noncentralt::qdf_non_central_t(const double& value, const double& freedom_degrees, const double& non_centrality) const

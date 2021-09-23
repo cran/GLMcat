@@ -5,46 +5,8 @@ using namespace std;
 using namespace Rcpp ;
 using namespace Eigen;
 
-//' Family of models for Discrete Choice
-//' @description Discrete choice model: Requires data in long form.
-//' For each individual (or decision maker), there are multiple observations (rows),
-//' one for each of the alternatives the individual could have chosen.
-//' We call the group of observations for an individual a “case”.
-//' Each case represents a single statistical observation although it comprises
-//' multiple observations.
-//' @title Discrete_CM
-//' @rdname Discrete_CM
-//' @name Discrete_CM
-//' @param formula a symbolic description of the model to be fit. An expression of the form y ~ predictors is interpreted as a specification that the response y is modelled by a linear predictor specified symbolically by model. A particularity for the formula is that for the case-specific variables, the user can define a specific effect for a category.
-//' @param case_id a string with the name of the column that identifies each case.
-//' @param alternatives a string with the name of the column that identifies the vector of alternatives the individual could have chosen.
-//' @param reference a string indicating the reference category
-//' @param alternative_specific a character vector with the name of the explanatory variables that are different for each case, these are the alternative specific variables. By default, the case specific variables are the explanatory variables that are not identify in here, but that are part of the formula.
-//' @param data a dataframe (in a long format) object in R, with the dependent variable as factor.
-//' @param cdf
-//' \describe{
-//' \item{\code{cdf}:}{a string indicating the F cdf, options are: logistic, normal, cauchy, student (any df), noncentralt, gompertz, gumbel and laplace.}
-//' \item{\code{df}:}{an integer with the degrees of freedom of the 'cdf'}
-//' \item{\code{mu}:}{an integer with the mu parameter of the 'cdf'}
-//' }
-//' @param intercept if "conditional" then the design will be equivalent to the conditional logit model
-//' @param normalization the quantile to use for the normalization of the estimated coefficients where the logistic distribution is used as the base cumulative distribution function.
-//' @param control
-//' \describe{
-//' \item{\code{maxit}:}{the maximum number of iterations for the Fisher scoring algorithm.}
-//' \item{\code{epsilon}:}{a double with to fix the epsilon value}
-//' \item{\code{beta_init}:}{an appropiate sized vector for the initial iteration of the algorithm}
-//' }
-//' @examples
-//' library(GLMcat)
-//' data(TravelChoice)
-//' Discrete_CM(formula = choice ~ hinc + gc + invt,
-//' case_id = "indv",alternatives = "mode", reference = "air",
-//' data = TravelChoice,  alternative_specific = c("gc", "invt"),
-//' cdf = "logistic")
-//' @note For these models it is not allowed to exclude the intercept.
-//' @export
-// [[Rcpp::export("Discrete_CM")]]
+
+// [[Rcpp::export(.Discrete_CM)]]
 List Discrete_CM(Formula formula,
                  String case_id,
                  String alternatives,
@@ -54,7 +16,7 @@ List Discrete_CM(Formula formula,
                  List cdf,
                  String intercept,
                  double normalization,
-                 List control
+                 Rcpp::List control
 ){
   // std::string cdf2 = cdf[0];
   //
@@ -83,13 +45,16 @@ List Discrete_CM(Formula formula,
 
   class cdf dist1;
 
+  String predict = "no"; // To order the dataset
+
   List Full_M = dist1.select_data_nested(formula,
                                          case_id,
                                          alternatives,
                                          reference,
                                          alternative_specific,
                                          data,
-                                         intercept
+                                         intercept,
+                                         predict
                                            //   ,
                                            // ratio
   );
@@ -205,7 +170,6 @@ List Discrete_CM(Formula formula,
       if(cdf_1 == "logistic"){
 
         // Rcout << eta << std::endl;
-        // print("as");
         pi = ref.inverse_logistic(eta);
         D = ref.inverse_derivative_logistic(eta);
 
@@ -373,27 +337,35 @@ List Discrete_CM(Formula formula,
     Convergence = "True";
   }
 
+  List cdf_list = List::create(
+    Named("cdf") = cdf_1,
+    Named("freedom_degrees") = freedom_degrees,
+    Named("mu") = mu
+
+  );
 
   List output_list_dis = List::create(
     Named("Function") = "DiscreteCM",
     Named("formula") = formula,
     Named("convergence") = Convergence,
     Named("ratio") = "reference",
-    Named("Nb. iterations") = iteration-1 ,
+    Named("iteration") = iteration-1 ,
     Named("coefficients") = BETA_2,
     Named("LogLikelihood") = LogLikIter(LogLikIter.rows() - 1),
-    Named("LogLikIter") =  LogLikIter,
+    Named("LogLikIter") = LogLikIter,
+    Named("cov_beta") =  cov_beta,
+    Named("Hessian") = F_i_final,
     Rcpp::Named("df of the model") = df,
-    Named("X_M_i") =  X_M_i,
+    // Named("X_M_i") =  X_M_i,
     Named("stderr") =  Std_Error,
     Named("N_cats") = K,
     Named("normalization_s0") =  s0,
-    Named("cdf") = cdf,
+    Named("cdf") = cdf_list,
     Named("nobs_glmcat") = N/K,
     Named("control") = control,
     Named("arguments") = List::create(Named("formula")= formula,Named("case_id")= case_id, Named("alternatives") = alternatives,
           Named("reference") = reference, Named("alternative_specific") = alternative_specific, Named("intercept") = intercept,
-                 Named("categories_order") = categories_order)
+                Named("categories_order") = categories_order)
   );
 
 
@@ -401,19 +373,19 @@ List Discrete_CM(Formula formula,
   return output_list_dis;
 }
 
-RCPP_MODULE(Discrete_CMmodule){
-  Rcpp::function("Discrete_CM", &Discrete_CM,
-                 List::create(_["formula"] = R_NaN,
-                              _["case_id"] = "a",
-                              _["alternatives"] = "a",
-                              _["reference"] = R_NaN,
-                              _["alternative_specific"] = CharacterVector::create( NA_STRING),
-                              _["data"] = NumericVector::create( 1, NA_REAL, R_NaN, R_PosInf, R_NegInf),
-                              _["cdf"] = R_NaN,
-                              _["intercept"] = "standard",
-                              _["normalization"] = 1.0,
-                              _["control"] = R_NaN
-                 ),
-                 "Discrete Choice Model");
-
-}
+// RCPP_MODULE(Discrete_CMmodule){
+//   Rcpp::function("Discrete_CM", &Discrete_CM,
+//                  List::create(_["formula"] = R_NaN,
+//                               _["case_id"] = "a",
+//                               _["alternatives"] = "a",
+//                               _["reference"] = R_NaN,
+//                               _["alternative_specific"] = CharacterVector::create( NA_STRING),
+//                               _["data"] = NumericVector::create( 1, NA_REAL, R_NaN, R_PosInf, R_NegInf),
+//                               _["cdf"] = R_NaN,
+//                               _["intercept"] = "standard",
+//                               _["normalization"] = 1.0,
+//                               _["control"] = R_NaN
+//                  ),
+//                  "Discrete Choice Model");
+//
+// }

@@ -6,8 +6,13 @@
 
 using namespace Rcpp;
 
+#ifdef RCPP_USE_GLOBAL_ROSTREAM
+Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
+Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
+#endif
+
 // Discrete_CM
-List Discrete_CM(Formula formula, String case_id, String alternatives, CharacterVector reference, CharacterVector alternative_specific, DataFrame data, List cdf, String intercept, double normalization, List control);
+List Discrete_CM(Formula formula, String case_id, String alternatives, CharacterVector reference, CharacterVector alternative_specific, DataFrame data, List cdf, String intercept, double normalization, Rcpp::List control);
 RcppExport SEXP _GLMcat_Discrete_CM(SEXP formulaSEXP, SEXP case_idSEXP, SEXP alternativesSEXP, SEXP referenceSEXP, SEXP alternative_specificSEXP, SEXP dataSEXP, SEXP cdfSEXP, SEXP interceptSEXP, SEXP normalizationSEXP, SEXP controlSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
@@ -21,7 +26,7 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< List >::type cdf(cdfSEXP);
     Rcpp::traits::input_parameter< String >::type intercept(interceptSEXP);
     Rcpp::traits::input_parameter< double >::type normalization(normalizationSEXP);
-    Rcpp::traits::input_parameter< List >::type control(controlSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type control(controlSEXP);
     rcpp_result_gen = Rcpp::wrap(Discrete_CM(formula, case_id, alternatives, reference, alternative_specific, data, cdf, intercept, normalization, control));
     return rcpp_result_gen;
 END_RCPP
@@ -59,16 +64,24 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
-
-RcppExport SEXP _rcpp_module_boot_Discrete_CMmodule();
-RcppExport SEXP _rcpp_module_boot_GLMcatmodule();
+// Model_Matrix_or
+List Model_Matrix_or(DataFrame data, Formula formula);
+RcppExport SEXP _GLMcat_Model_Matrix_or(SEXP dataSEXP, SEXP formulaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< DataFrame >::type data(dataSEXP);
+    Rcpp::traits::input_parameter< Formula >::type formula(formulaSEXP);
+    rcpp_result_gen = Rcpp::wrap(Model_Matrix_or(data, formula));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_GLMcat_Discrete_CM", (DL_FUNC) &_GLMcat_Discrete_CM, 10},
     {"_GLMcat_GLMcat", (DL_FUNC) &_GLMcat_GLMcat, 10},
     {"_GLMcat_predict_glmcat", (DL_FUNC) &_GLMcat_predict_glmcat, 3},
-    {"_rcpp_module_boot_Discrete_CMmodule", (DL_FUNC) &_rcpp_module_boot_Discrete_CMmodule, 0},
-    {"_rcpp_module_boot_GLMcatmodule", (DL_FUNC) &_rcpp_module_boot_GLMcatmodule, 0},
+    {"_GLMcat_Model_Matrix_or", (DL_FUNC) &_GLMcat_Model_Matrix_or, 2},
     {NULL, NULL, 0}
 };
 

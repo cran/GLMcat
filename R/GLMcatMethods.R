@@ -1,56 +1,208 @@
-#' Summary of models
-#' @description \code{summary} method for GLMcat objects.
-#' @param object a GLMcat model
-#' @param ... additional arguments affecting the summary produced.
-#' @rdname summary
-#' @export
-summary.glmcat <- function(object, ...) {
-  coef <- object$coefficients
-  se <- object$stderr
-  s0 <- object$normalization_s0
-
-  tval <- coef / se
-
-  object$coefficients <- cbind(
-    "Estimate" = coef,
-    "Std. Error" = se,
-    "z value" = tval,
-    "Pr(>|z|)" = 2 * pnorm(-abs(tval))
-  )
-
-  colnames(object$coefficients) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
-  sum_ma <- object$coefficients
-  printCoefmat(object$coefficients, P.values = TRUE, has.Pvalue = TRUE, ...)
-
-  if(s0 !=1 ){
-    print("Normalized coefficients")
-    object$coefficients <- cbind(
-      "Estimate" = coef * s0,
-      "Std. Error" = se * s0,
-      "z value" = tval,
-      "Pr(>|z|)" = 2 * pnorm(-abs(tval))
-    )
-    colnames(object$coefficients) <- c("Estimate", "Std. Error", "z value", "Pr(>|z|)")
-    printCoefmat(object$coefficients, P.values = TRUE, has.Pvalue = TRUE, ...)
-  }
-
+#' Print method for a fitted code{glmcat} model object
+#' @description \code{print} method for a fitted \code{glmcat} model object.
+#' @param x an object of class \code{glmcat}.
+#' @param ... additional arguments.
+#' @rdname print
+#' @exportS3Method
+print.glmcat <- function(x, ...) {
+  cat("\nFormula:\n")
+  print(x$formula)
+  print(x$table_summary)
+  cat("\nCoefficients:\n")
+  print(coef(x, with_baseline = FALSE))
+  ll <- logLik(x)
+  cat("\nLog-Likelihood:\n ", ll, " (df = ", attr(ll, "df"), ")", sep = "")
+  cat("\n\n")
+  invisible(x)
 }
 
-#' Model coefficients
-#' @description Extract model coefficients from a glmcat object.
-#' @param object a GLMcat model.
+#' Plot method for a fitted code{glmcat} model object
+#' @description \code{plot} of the log-likelihood profile for a fitted \code{glmcat} model object.
+#' @param x an object of class \code{glmcat}.
+#' @param ... additional arguments.
+#' @rdname plot
+#' @exportS3Method
+plot.glmcat <- function(x, ...) {
+  log_iter <- x$LogLikIter
+  plot(log_iter[-1],main = "Log-likelihood profile", xlab = "Iteration", ylab = "Log-likelihood")
+  lines(log_iter[-1])
+}
+
+
+#' Variance-Covariance Matrix for a fitted \code{glmcat} model object
+#' @description Returns the variance-covariance matrix of the main parameters of a fitted \code{glmcat} model object.
+#' @param object an object of class \code{glmcat}.
+#' @param ... additional arguments.
+#' @rdname vcov
+#' @method vcov glmcat
+#' @usage \method{vcov}{glmcat}(object,...)
+#' @exportS3Method
+vcov.glmcat <- function(object,...) {
+  colnames(object$cov_beta) <- rownames(object$cov_beta) <- rownames(object$coefficients)
+  return(object$cov_beta)
+}
+
+#' Terms of a fitted \code{glmcat} model object
+#' @description Returns the terms of a fitted \code{glmcat} model object.
+#' @param x an object of class \code{glmcat}.
+#' @param ... additional arguments.
+#' @rdname terms
+#' @method terms glmcat
+#' @usage \method{terms}{glmcat}(x, ...)
+#' @exportS3Method
+terms.glmcat <- function(x,...) {
+  return(terms(x$formula))
+}
+
+#' Predict method for a a fitted \code{glmcat} model object
+#' @description Obtains predictions of a fitted \code{glmcat} model object.
+#' @param object a fitted object of class \code{glmcat}.
+#' @param newdata optionally, a data frame in which to look for the variables involved in the model. If omitted, the fitted linear predictors are used.
+# #' @param se.fit should standard errors of the predictions be provided? Not applicable and ignored when \code{type = "class"}.
+# #' @param interval should confidence intervals for the predictions be provided?  Not applicable and ignored when \code{type = "class"}.
+# #' @param level the confidence level.
+#' @param type the type of prediction required.
+#' The default is \code{"prob"} which gives the probabilities, the other option is
+#' \code{"linear.predictor"} which gives predictions on the scale of the linear predictor.
+# #' @param na.action function determining what should be done with missing values in \code{newdata}. The default is to predict \code{NA}.
+#' @param ... further arguments.
+#' The default is \code{"prob"} which gives the probabilities, the other option is
+#' \code{"linear.predictor"} which gives predictions on the scale of the linear predictor.
+#' @rdname predict
+#' @method predict glmcat
+#' @usage \method{predict}{glmcat}(object, newdata, type, ...)
+#' @exportS3Method
+predict.glmcat <- function(object,
+                           newdata,
+                           # se.fit = FALSE,
+                           # interval = FALSE,
+                           # level = 0.95,
+                           type = c("prob", "linear.predictor"),
+                           # na.action = na.pass,
+                           ...){
+  if (missing(type)) { type <- "prob" }
+  type <- match.arg(type, c("prob", "linear.predictor"))
+  if (missing(newdata)) {
+    # if (object$Function == "DiscreteCM"){
+    #   object1 <- object
+    #   formula1 <- paste(format(object1$formula),"+",object1$arguments$case_id,"+",
+    #                     object1$arguments$alternatives,sep = "")
+    #   object1$formula <- formula1
+    #   newdata <- model.frame(object1)
+    #   print(object1$formula)
+    #
+    # }else{
+    newdata <- model.frame(object)
+    # }
+  }
+
+  newdata[with(attributes(terms(object)), as.character(variables[response+1]))] <- object$categories_order[1]
+
+  return(.predict_glmcat(model_object = object, data = newdata, type = type))
+}
+
+#' Confidence intervals for parameters of a fitted \code{glmcat} model object
+#' @description Computes confidence intervals from a fitted \code{glmcat} model object for all the parameters.
+#' @param object an fitted object of class \code{glmcat}.
+#' @param parm a numeric or character vector indicating which regression coefficients should be displayed
+#' @param level the confidence level.
+#' @param ... other parameters.
+#' @rdname confint.glmcat
+#' @method confint glmcat
+#' @usage \method{confint}{glmcat}(object, parm, level, ...)
+#' @exportS3Method
+confint.glmcat <-
+  function(object, parm = NULL, level = 0.95, ...)
+  {
+    stopifnot(is.numeric(level) && length(level) == 1 && level > 0 && level < 1)
+    lev <- (1 - level)/2
+    lev <- c(lev, 1 - lev)
+    pct <- paste(format(100 * lev, trim = TRUE, scientific = FALSE,  digits = 3), "%")
+    fac <- qnorm(lev)
+    coefs <- coef(object)
+    parnames <- rownames(coefs)
+    if(is.character(parm))
+      parm <- match(parm, parnames, nomatch = 0)
+    if(is.null(parm)){
+      parm = seq_len(length(coefs))
+    }
+    if(!all(parm %in% seq_len(length(coefs))))
+      stop("invalid 'parm' argument")
+    stopifnot(length(parm) > 0)
+
+    ses <- coef(summary(object))[, 2]
+    ci <- array(NA, dim = c(length(coefs), 2L), dimnames = list(names(coefs), pct))
+    ci[] <- cbind(coefs,coefs) + ses %o% fac
+    rownames(ci) <- rownames(coefs)
+
+    ci <- ci[parm,]
+    return(ci)
+  }
+
+
+#' Summary method for a fitted \code{glmcat} model object
+#' @description Summary method for a fitted \code{glmcat} model object.
+#' @param object an fitted object of class \code{glmcat}.
+#' @param normalized if \code{normalized} is \code{TRUE} summary method yields the normalized coefficients.
+#' @param correlation TRUE to print the Correlation Matrix.
+#' @param ... additional arguments affecting the summary produced.
+#' @rdname summary
+#' @method summary glmcat
+#' @exportS3Method
+summary.glmcat <- function(object, normalized = FALSE, correlation = FALSE,...) {
+  vcov <- object$cov_beta
+  coefs <- matrix(NA, length(object$coefficients), 4,
+                  dimnames = list(names(object$coefficients),
+                                  c("Estimate", "Std. Error", "z value", "Pr(>|z|)")))
+
+  coefs[, 1] <- object$coefficients
+  coefs[, 2] <- sd <- sqrt(diag(vcov))
+
+  if(normalized){
+    cat("Normalized coefficients with s0 = ",object$normalization_s0, "\n")
+    coefs <- matrix(NA, length(object$coefficients*object$normalization_s0), 4,
+                    dimnames = list(names(object$coefficients*object$normalization_s0),
+                                    c("Estimate", "Std. Error", "z value", "Pr(>|z|)")))
+    coefs[, 1] <- object$coefficients*object$normalization_s0
+    coefs[, 2] <- sd <- sqrt(diag(vcov))*object$normalization_s0
+  }
+
+  if(!all(is.finite(vcov))) {
+    ## warning("Variance-covariance matrix of the parameters is not defined")
+    coefs[, 2:4] <- NA
+    if(correlation) warning("Correlation matrix is unavailable")
+  }
+  else {
+    # alias <- unlist(object$aliased)
+
+    ## Cond is Inf if Hessian contains NaNs:
+    object$cond.H <-
+      if(any(is.na(object$Hessian))) Inf
+    else with(eigen(object$Hessian, symmetric=TRUE, only.values = TRUE),
+              abs(max(values) / min(values)))
+    coefs[, 3] <- coefs[, 1]/coefs[, 2]
+    coefs[, 4] <- 2 * pnorm(abs(coefs[, 3]),
+                            lower.tail=FALSE)
+    if(correlation)
+      object$correlation <- cov2cor(vcov)
+  }
+
+  # coefs[, 1] <- object$coefficients
+
+  rownames(coefs) <- rownames(object$coefficients)
+
+  object$coefficients <- coefs
+  class(object) <- "summary.glmcat"
+  object
+}
+
+#' Model coefficients of a fitted \code{glmcat} model object
+#' @description Returns the coefficient estimates of the fitted \code{glmcat} model object.
+#' @param object an fitted object of class \code{glmcat}.
 #' @param na.rm TRUE for NA coefficients to be removed, default is FALSE.
-#' @param ...	other arguments.
 #' @rdname coef
-#' @export
-#' @examples
-#' data(DisturbedDreams)
-#' mod1 <- GLMcat(
-#'   formula = Level ~ Age,
-#'   ref_category = "Very.severe",
-#'   data = DisturbedDreams, cdf = "logistic"
-#' )
-#' coef(mod1)
+#' @param ... additional arguments affecting the \code{coef} method.
+#' @exportS3Method
 coef.glmcat <- function(object, na.rm = FALSE, ...) {
   if (na.rm) {
     coefs <- object$coefficients
@@ -61,75 +213,55 @@ coef.glmcat <- function(object, na.rm = FALSE, ...) {
   }
 }
 
-#' Number of observations in a glmcat model
-#' @description Extract the number of observations from a GLMcat model.
-#' @param object a GLMcat model.
-#' @param ...	other arguments.
-#' @rdname nobs_glmcat
-#' @export
-#' @examples
-#' data(DisturbedDreams)
-#' mod1 <- GLMcat(
-#'   formula = Level ~ Age,
-#'   categories_order = c("Not.severe", "Severe.1", "Severe.2", "Very.severe"),
-#'   data = DisturbedDreams, cdf = "logistic"
-#' )
-#' nobs_glmcat(mod1)
-nobs_glmcat <- function(object, ...) {
+#' Number of observations of a fitted \code{glmcat} model object
+#' @description Extract the number of observations of the fitted \code{glmcat} model object.
+#' @param object an fitted object of class \code{glmcat}.
+#' @param ... additional arguments affecting the \code{nobs} method.
+#' @rdname nobs
+#' @method nobs glmcat
+#' @exportS3Method
+nobs.glmcat <- function(object,...) {
   return(object$nobs_glmcat)
 }
 
-#' LogLikelihood glmcat models
-#' @description Extract LogLikelihood for GLMcat models.
+#' Log-likelihood of a fitted \code{glmcat} model object
+#' @description Extract Log-likelihood of a fitted \code{glmcat} model object.
 #' @rdname logLik
-#' @param object a GLMcat model.
-#' @param ...	other arguments.
-#' @export
-#' @examples
-#' data(DisturbedDreams)
-#' mod1 <- GLMcat(
-#'   formula = Level ~ Age,
-#'   categories_order = c("Not.severe", "Severe.1", "Severe.2", "Very.severe"),
-#'   data = DisturbedDreams, cdf = "logistic"
-#' )
-#' logLik(mod1)
-logLik.glmcat <- function(object, ...) {
+#' @param object an fitted object of class \code{glmcat}.
+#' @param ... additional arguments affecting the loglik.
+#' @method logLik glmcat
+#' @exportS3Method
+logLik.glmcat <- function(object,...) {
   structure(object$LogLikelihood,
             df = object$df, nobs_glmcat = object$nobs_glmcat,
             class = "logLik"
   )
 }
 
+#' Extract AIC from a fitted \code{glmcat} model object
+#' @description Method to compute the (generalized) Akaike An Information Criterion for a fitted object of class \code{glmcat}.
+#' @rdname extractAIC
+#' @param fit an fitted object of class \code{glmcat}.
+#' @param ... further arguments (currently unused in base R).
+#' @method extractAIC glmcat
+#' @exportS3Method
+extractAIC.glmcat <- function(fit, ...) {
+  scale = 0
+  k = 2
+  edf <- fit$df
+  c(edf, -2*fit$LogLikelihood + k * edf)
+}
 
-#' control glmcat models
-#' @description Set control parameters for GLMcat models.
-#' @rdname control
-#' @param maxit the maximum number of the Fisher's Scorng Algorithm iterations. Defaults to 25.
+#' Control parameters for \code{glmcat} models
+#' @description Set control parameters for \code{glmcat} models.
+#' @rdname control_glmcat
+#' @param maxit the maximum number of the Fisher's Scoring Algorithm iterations. Defaults to 25.
 #' @param epsilon a double to change update the convergence criterion of GLMcat models.
-#' @param beta_init an appropiate sized vector for the initial iteration of the algorithm.
+#' @param beta_init an appropriate sized vector for the initial iteration of the algorithm.
 #' @export
-control.glmcat <- function(maxit = 25, epsilon = 1e-06, beta_init = NA) {
+control_glmcat <- function(maxit = 25, epsilon = 1e-06, beta_init = NA) {
   return(list("maxit" = maxit, "epsilon" = epsilon, "beta_init" = beta_init))
   # return(maxit)
-}
-
-#' student glmcat models
-#' @description Student distribution
-#' @rdname student
-#' @param df degrees_freedom
-#' @export
-student.glmcat <- function(df = 7) {
-  return(list("cdf" = "student", "df" = df))
-}
-
-#' Noncentral t cdf for glmcat models
-#' @description Noncentral t cdf
-#' @rdname noncentralt
-#' @param df degrees_freedom
-#' @param mu non centrality parameter
-#' @export
-noncentralt.glmcat <- function(df = 7, mu = 0) {
-  return(list("cdf" = "noncentralt", "df" = df, "mu" = mu))
 }
 
 safe_pchisq <- function(q, df, ...) {
@@ -153,7 +285,7 @@ drop2 <- function(object, scope, data, scale = 0, test=c("none", "Chisq"),
   ans <- matrix(nrow = ns + 1L, ncol = 2L,
                 dimnames =  list(c("<none>", scope), c("df", "AIC")))
   ans[1, ] <- AIC(object)
-  n0 <- nobs_glmcat(object, use.fallback = TRUE)
+  n0 <- nobs(object, use.fallback = TRUE)
   env <- environment(formula(object))
   for(i in seq_len(ns)) {
     tt <- scope[i]
@@ -169,14 +301,14 @@ drop2 <- function(object, scope, data, scale = 0, test=c("none", "Chisq"),
     if(fun_in == "GLMcat"){
       object$parallel <- object$parallel[object$parallel != tt]
       if(length(object$parallel) == 0) {object$parallel <- NA}
-      nfit <- GLMcat(nfit, data, object$ratio, object$cdf, object$parallel,
+      nfit <- .GLMcat(nfit, data, object$ratio, object$cdf, object$parallel,
                      object$categories_order, object$ref_category,
-                     object$threshold, control.glmcat(object$control$maxit, object$control$epsilon, object$control$beta_init),
+                     object$threshold, control_glmcat(object$control$maxit, object$control$epsilon, object$control$beta_init),
                      object$normalization_s0)
     }else{
       object$arguments$alternative_specific <- object$arguments$alternative_specific[object$arguments$alternative_specific != tt]
       if(length(object$arguments$alternative_specific) == 0) {object$arguments$alternative_specific <- NA}
-      nfit <- Discrete_CM(formula = nfit,
+      nfit <- .Discrete_CM(formula = nfit,
                           data = data,
                           cdf = object$cdf,
                           case_id = object$arguments$case_id,
@@ -185,13 +317,13 @@ drop2 <- function(object, scope, data, scale = 0, test=c("none", "Chisq"),
                           # object$categories_order,
                           intercept = object$arguments$intercept,
                           reference = object$arguments$reference,
-                          control.glmcat(object$control$maxit,
+                          control_glmcat(object$control$maxit,
                                          object$control$epsilon, object$control$beta_init),
                           normalization = object$normalization_s0)
 
     }
     ans[i+1, ] <- AIC(nfit)
-    nnew <- nobs_glmcat(nfit, use.fallback = TRUE)
+    nnew <- nobs(nfit, use.fallback = TRUE)
     if(all(is.finite(c(n0, nnew))) && nnew != n0)
       stop("number of rows in use has changed: remove missing values?")
   }
@@ -230,7 +362,7 @@ add2 <- function(object, scope, data, scale = 0, test=c("none", "Chisq"),
   ans <- matrix(nrow = ns + 1L, ncol = 2L,
                 dimnames = list(c("<none>", scope), c("df", "AIC")))
   ans[1L,  ] <- AIC(object)
-  n0 <- nobs_glmcat(object, use.fallback = TRUE)
+  n0 <- nobs(object, use.fallback = TRUE)
   # env <- environment(formula(object))
   for(i in seq_len(ns)) {
     tt <- scope[i]
@@ -250,14 +382,14 @@ add2 <- function(object, scope, data, scale = 0, test=c("none", "Chisq"),
     if(fun_in == "GLMcat"){
       # object$parallel <- object$parallel[object$parallel != tt]
       # if(length(object$parallel) == 0) {object$parallel <- NA}
-      nfit <- GLMcat(nfit, data, object$ratio, object$cdf, object$parallel,
+      nfit <- .GLMcat(nfit, data, object$ratio, object$cdf, object$parallel,
                      object$categories_order, object$ref_category,
-                     object$threshold, control.glmcat(object$control$maxit, object$control$epsilon, object$control$beta_init),
+                     object$threshold, control_glmcat(object$control$maxit, object$control$epsilon, object$control$beta_init),
                      object$normalization_s0)
     }else{
       # object$arguments$alternative_specific <- object$arguments$alternative_specific[object$arguments$alternative_specific != tt]
       # if(length(object$arguments$alternative_specific) == 0) {object$arguments$alternative_specific <- NA}
-      nfit <- Discrete_CM(formula = nfit,
+      nfit <- .Discrete_CM(formula = nfit,
                           data = data,
                           cdf = object$cdf,
                           alternative_specific = object$arguments$alternative_specific,
@@ -266,13 +398,13 @@ add2 <- function(object, scope, data, scale = 0, test=c("none", "Chisq"),
                           alternatives = object$arguments$alternatives,
                           reference = object$arguments$reference,
                           intercept = object$arguments$intercept,
-                          control.glmcat(object$control$maxit,
+                          control_glmcat(object$control$maxit,
                                          object$control$epsilon, object$control$beta_init),
                           normalization = object$normalization_s0)
     }
 
     ans[i+1L, ] <- AIC(nfit)
-    nnew <- nobs_glmcat(nfit, use.fallback = TRUE)
+    nnew <- nobs(nfit, use.fallback = TRUE)
     if(all(is.finite(c(n0, nnew))) && nnew != n0)
       stop("number of rows in use has changed: remove missing values?")
   }
@@ -295,22 +427,23 @@ add2 <- function(object, scope, data, scale = 0, test=c("none", "Chisq"),
   aod
 }
 
-#' Stepwise for glmcat models
-#' @description Stepwise based on the AIC
-#' @rdname step_glmcat
-#' @param object a GLMcat model.
+#' Stepwise for a \code{glmcat} model object
+#' @description Stepwise for a \code{glmcat} model object based on the AIC.
+#' @param object an fitted object of class \code{glmcat}.
 #' @param scope defines the range of models examined in the stepwise search (same as in the step function of the stats package). This should be either a single formula, or a list containing components upper and lower, both formulae.
-#' @param data the same dataset used for the model specified in object.
 #' @param direction the mode of the stepwise search.
 #' @param trace to print the process information.
 #' @param steps the maximum number of steps.
-#' @export
-step_glmcat <- function (object, data,
+#' @method step glmcat
+#' @rdname step
+#' @usage \method{step}{glmcat}(object, scope, direction, trace, steps)
+#' @exportS3Method
+step.glmcat <- function (object,
                          scope,
-                         direction = c("both", "backward",
-                                       "forward"),
+                         direction = c("both", "backward", "forward"),
                          trace = 1, steps = 1000)
 {
+  data <- object$model
   mydeviance <- function(x, ...) {
     dev <- deviance(x)
     if (!is.null(dev))
@@ -384,7 +517,7 @@ step_glmcat <- function (object, data,
   models <- vector("list", steps)
   # if (!is.null(keep))
   #   keep.list <- vector("list", steps)
-  n <- nobs_glmcat(object, use.fallback = TRUE)
+  n <- nobs(object, use.fallback = TRUE)
   fit <- object
   bAIC <- AIC(fit)
   edf <- length(attr(fit$terms,"term.labels"))
@@ -452,25 +585,24 @@ step_glmcat <- function (object, data,
 
     form1 <- update(fit$formula, as.formula(paste("~ .", change)),
                     evaluate = FALSE)
-    # object$parallel <- object$parallel[object$parallel != str_trim(sub("-","", change))]
-    object$parallel <- object$parallel[object$parallel != trimws(sub("-","", change))]
+    object$parallel <- object$parallel[object$parallel != str_trim(sub("-","", change))]
     if(length(object$parallel) == 0) {object$parallel <- NA}
 
     # fit <- GLMcat(form1, data, object$ratio, object$cdf, object$parallel,
     #               object$categories_order, object$ref_category,
-    #               object$threshold, control.glmcat(object$control$maxit, object$control$epsilon, object$control$beta_init),
+    #               object$threshold, control_glmcat(object$control$maxit, object$control$epsilon, object$control$beta_init),
     #               object$normalization_s0)
 
     fun_in = object$Function
     if(fun_in == "GLMcat"){
-      fit <- GLMcat(form1, data, object$ratio, object$cdf, object$parallel,
+      fit <- .GLMcat(form1, data, object$ratio, object$cdf, object$parallel,
                     object$categories_order, object$ref_category,
-                    object$threshold, control.glmcat(object$control$maxit, object$control$epsilon, object$control$beta_init),
+                    object$threshold, control_glmcat(object$control$maxit, object$control$epsilon, object$control$beta_init),
                     object$normalization_s0)
     }else{
       # object$arguments$alternative_specific <- object$arguments$alternative_specific[object$arguments$alternative_specific != tt]
       # if(length(object$arguments$alternative_specific) == 0) {object$arguments$alternative_specific <- NA}
-      fit <- Discrete_CM(formula = form1,
+      fit <- .Discrete_CM(formula = form1,
                          data = data,
                          cdf = object$cdf,
                          alternative_specific = object$arguments$alternative_specific,
@@ -479,14 +611,14 @@ step_glmcat <- function (object, data,
                          alternatives = object$arguments$alternatives,
                          reference = object$arguments$reference,
                          intercept = object$arguments$intercept,
-                         control.glmcat(object$control$maxit,
+                         control_glmcat(object$control$maxit,
                                         object$control$epsilon, object$control$beta_init),
                          normalization = object$normalization_s0)
     }
 
     fit$terms <-   terms(formula(fit$formula), data = fit$data)
 
-    nnew <- nobs_glmcat(fit, use.fallback = TRUE)
+    nnew <- nobs(fit, use.fallback = TRUE)
     if (all(is.finite(c(n, nnew))) && nnew != n)
       stop("number of rows in use has changed: remove missing values?")
     Terms <- terms(fit)

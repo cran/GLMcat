@@ -8,38 +8,7 @@ using namespace std;
 using namespace Rcpp ;
 using namespace Eigen;
 
-//' Families of models for categorical responses
-//' @description Families of models for categorical responses (reference, adjacent, sequential, and cumulative ratio)
-//' @title GLMcat
-//' @rdname GLMcat
-//' @name GLMcat
-//' @param formula a symbolic description of the model to be fit. An expression of the form y ~ predictors is interpreted as a specification that the response y is modelled by a linear predictor specified symbolically by model.
-//' @param ratio a string indicating the F cdf, options are: reference, adjacent, cumulative and sequential. Default value is reference.
-//' @param cdf
-//' \describe{
-//' \item{\code{cdf}:}{a string indicating the F cdf, options are: logistic, normal, cauchy, student (any df), noncentralt, gompertz, gumbel and laplace.}
-//' \item{\code{df}:}{an integer with the degrees of freedom of the 'cdf'}
-//' \item{\code{mu}:}{an integer with the mu parameter of the 'cdf'}
-//' }
-//' @param categories_order a character vector indicating the incremental order of the categories: c("a", "b", "c"); a<b<c. Alphabetical order is assumed by default. Order is relevant for adjacent, cumulative and sequential ratio.
-//' @param ref_category a string indicating the reference category. Proper option for models with reference ratio.
-//' @param parallel a character vector indicating the name of the variables with a parallel effect. If variable is categorical, specify the name and the level of the variable as a string "namelevel".
-//' @param data a dataframe object in R, with the dependent variable as factor.
-//' @param threshold restriction to impose on the thresholds, options are: standard, equidistant or symmetric (Valid only for the cumulative ratio).
-//' @param control
-//' \describe{
-//' \item{\code{maxit}:}{the maximum number of iterations for the Fisher scoring algorithm.}
-//' \item{\code{epsilon}:}{a double to change update the convergence criterion of GLMcat models.}
-//' \item{\code{beta_init}:}{an appropiate sized vector for the initial iteration of the algorithm.}
-//' }
-//' @param normalization the quantile to use for the normalization of the estimated coefficients where the logistic distribution is used as the base cumulative distribution function.
-//' @export
-//' @examples
-//' data(DisturbedDreams)
-//' ref_log_com <- GLMcat(formula = Level ~ Age, data = DisturbedDreams,
-//'     ref_category = "Very.severe",
-//'     cdf = "logistic", ratio = "reference")
-// [[Rcpp::export("GLMcat")]]
+// [[Rcpp::export(.GLMcat)]]
 List GLMcat(Formula formula,
             DataFrame data,
             std::string ratio,
@@ -140,15 +109,20 @@ List GLMcat(Formula formula,
   // cout << epsilon << std::endl;
 
 
-  if((ratio == "cumulative" && explanatory_complete[0] == "(Intercept)") && threshold == "standard"){
-    int qm = Q/2;
-    IntegerVector seqvec = seq(-qm,Q-qm-1); // kind of symmetric around 0
-    NumericVector seqvec2 = as<NumericVector>(seqvec);
-    Eigen::Map<Eigen::VectorXd> seqvec1 = as<Eigen::Map<Eigen::VectorXd> >(seqvec2);
-    // Rcout << BETA.size() << std::endl;
-    BETA.block(0, 0 , Q , 1) = seqvec1;
-    // Rcout << BETA << std::endl;
-  }
+  // Initialization cumulative special ascending intercepts, it generated some problems
+  // if((ratio == "cumulative" && explanatory_complete[0] == "(Intercept)") && threshold == "standard"){
+  //   int qm = Q/2;
+  //   // Rcout << qm << std::endl;
+  //   // qm_vec = std::vector<int> vec(Q-1, qm);
+  //   IntegerVector seqvec = seq(1,Q) ; // kind of symmetric around 0
+  //   // Rcout << seqvec  << std::endl;
+  //   NumericVector seqvec2 = as<NumericVector>(seqvec);
+  //   seqvec2 = seqvec2 - qm;
+  //   Eigen::Map<Eigen::VectorXd> seqvec1 = as<Eigen::Map<Eigen::VectorXd> >(seqvec2);
+  //   // Rcout << seqvec1 << std::endl;
+  //   BETA.block(0, 0 , Q , 1) = seqvec1;
+  //   Rcout << BETA << std::endl;
+  // }
 
   if(beta_init.length() >= 2 ){
     BETA = as<Eigen::Map<Eigen::VectorXd> >(beta_init);
@@ -182,13 +156,17 @@ List GLMcat(Formula formula,
 
   double qp , s0 = 1;
 
-  while ((Stop_criteria>(epsilon / N)) & (iteration < (iterations_us ))){
+  Environment base_base7("package:base");
+  Function my_solve = base_base7["solve"];
 
+  // while ((Stop_criteria>(epsilon / N))){
+  while ((Stop_criteria>(epsilon / N)) & (iteration <= (iterations_us ))){
     // Rcout << Stop_criteria << std::endl;
 
     MatrixXd Score_i = MatrixXd::Zero(BETA.rows(),1);
     MatrixXd F_i = MatrixXd::Zero(BETA.rows(), BETA.rows());
     LogLik = 0.;
+
 
     // Loop by subject
     for (int i=0; i < N; i++){
@@ -320,7 +298,23 @@ List GLMcat(Formula formula,
 
       // Rcout << "Cov_i.determinant()" << std::endl;
       // Rcout << Cov_i.determinant() << std::endl;
+
+
+      // FullPivLU<MatrixXd> lu(Cov_i);
+      // bool invertible = lu.isInvertible();
+      //
+      // if(!invertible || LogLikIter[iteration]>-0.000001 ) {
+      //   Rcpp::stop("Fisher matrix is not invertible COV. Check for convergence problems");
+      // }
+
+      // NumericMatrix Cov_i_2 = wrap(Cov_i);
+      // NumericMatrix Cov_i_3 = my_solve(Cov_i_2, Named("tol")= 2.95222e-200);
+      //
+      // Eigen::Map<Eigen::MatrixXd> Cov_i_3_4 = as<Eigen::Map<Eigen::MatrixXd> >(Cov_i_3);
+
+
       W_in = D * Cov_i.inverse();
+      // W_in = D * Cov_i_3_4;
       Score_i_2 = X_M_i.transpose() * W_in * (Y_M_i - pi);
       Score_i = Score_i + Score_i_2;
       F_i_2 = X_M_i.transpose() * (W_in) * (D.transpose() * X_M_i);
@@ -352,15 +346,15 @@ List GLMcat(Formula formula,
     // pi_ma.col(Q) = Ones1 - pima3 ;
 
     // To stop when LogLik is smaller than the previous
-    if(iteration>5){
+    if(iteration>10){
       if (LogLikIter[iteration] > LogLik )
         break;
       // iteration = 25;
     }
 
-//
-//     Rcout << iteration << std::endl;
-//     Rcout << LogLik << std::endl;
+    //
+    // Rcout << iteration << std::endl;
+    // Rcout << LogLik << std::endl;
 
     LogLikIter.conservativeResize(iteration+2, 1);
     LogLikIter(iteration+1) = LogLik;
@@ -371,16 +365,22 @@ List GLMcat(Formula formula,
     FullPivLU<MatrixXd> lu(F_i);
     bool invertible = lu.isInvertible();
 
-    // if(!invertible || LogLikIter[iteration]>-0.000001 ) {
+    if(!invertible || LogLik > -0.000001 ) {
+      Rcpp::warning("Fisher matrix is not invertible. Check for convergence problems");
+    }
+
+    // if(!invertible ) {
     //   Rcpp::stop("Fisher matrix is not invertible. Check for convergence problems");
     // }
 
-    if(!invertible ) {
-      Rcpp::stop("Fisher matrix is not invertible. Check for convergence problems");
-    }
 
+    // NumericMatrix F_i_2 = wrap(F_i);
+    // NumericMatrix F_i_3 = my_solve(F_i_2, Named("tol")= 2.95222e-200);
+    //
+    // Eigen::Map<Eigen::MatrixXd> A_eigen = as<Eigen::Map<Eigen::MatrixXd> >(F_i_3);
 
     BETA = BETA + (F_i.inverse() * Score_i);
+    // BETA = BETA + (A_eigen * Score_i);
     // check_tutz = ((BETA - beta_old).norm())/(beta_old.norm()+check_tutz);
     iteration = iteration + 1;
     // if (iteration == 30) {
@@ -393,7 +393,15 @@ List GLMcat(Formula formula,
     // Rcout << BETA << std::endl;
     // Rcout << "LogLik" << std::endl;
     // Rcout << LogLik << std::endl;
+
+
+    if(iteration == iterations_us){
+      warning("Maximum number of iterations reached.");
+    }
+
   }
+
+
   // Rcout << "pi_ma" << std::endl;
   // Rcout << pi_ma << std::endl;
   VectorXd pima3 = pi_ma.rowwise().sum();
@@ -407,6 +415,7 @@ List GLMcat(Formula formula,
   // Rcout << pimadef << std::endl;
 
   cov_beta = F_i_final.inverse();
+  // MatrixXd Hessian = -F_i_final;
   Std_Error = cov_beta.diagonal();
   Std_Error = Std_Error.array().sqrt() ;
 
@@ -445,7 +454,6 @@ List GLMcat(Formula formula,
       names1 = names2;
     }
 
-    // print(names1);
     if(P_c > 1){
       for(int var = 1 ; var < explanatory_complete.size() ; var++){
         for(int cat = 0 ; cat < Q ; cat++){
@@ -454,7 +462,6 @@ List GLMcat(Formula formula,
         }
       }
     }
-    // print(names1);
     if(P_p > 0){
       for(int var_p = 0 ; var_p < P_p ; var_p++){
         names1[ind_name] = parallel_effect[var_p];
@@ -561,31 +568,34 @@ List GLMcat(Formula formula,
     Convergence = "True";
   }
 
+
+
   List output_list = List::create(
     Named("Function") = "GLMcat",
     Named("coefficients") = coef,
     Named("stderr") = Std_Error,
     Named("iteration") = iteration,
     Named("ratio") = ratio,
-    Named("convergence") = Convergence,
+    // Named("convergence") = Convergence,
+    // Named("exp_variables") = names,
     Named("ref_category") = ref_category,
     Named("threshold") = threshold,
     Named("control") = control,
     Named("normalization_s0") = s0,
     // Named("pinv") = pinv,
-    // Named("cov_beta") = cov_beta,
+    Named("cov_beta") = cov_beta,
     Rcpp::Named("df of the model") = df,
     // Rcpp::Named("fitted") = pi_ma,
     // Rcpp::Named("D_ma") = D_ma,
     // Rcpp::Named("pi_ma_vec") = pi_ma_vec,
     // Rcpp::Named("Y_init_vec") = Y_init_vec,
     // Rcpp::Named("dev_log") = dev_log,
-    Rcpp::Named("deviance") = deviance,
+    // Rcpp::Named("deviance") = deviance,
     // Rcpp::Named("residuals") = residuals,
     Named("LogLikelihood") = LogLik,
     // Named("mu_noncentralt") = mu,
-    // Named("Y_init") = Y_init,
-    // Named("LogLikIter") = LogLikIter,
+    Named("Hessian") = F_i_final,
+    Named("LogLikIter") = LogLikIter,
     Named("formula") = formula,
     Named("categories_order") = categories_order,
     Named("parallel") = parallel,
@@ -594,7 +604,6 @@ List GLMcat(Formula formula,
     Named("cdf") = cdf_list
     // Named("coverged") = true,
     // Named("freedom_degrees") = freedom_degrees,
-    // Named("normalization_s0") =  s0
   );
 
   output_list.attr("class") = "glmcat";
@@ -604,73 +613,57 @@ List GLMcat(Formula formula,
 
 
 
-//' Prediction based on GLMcat models
-//' @description GLMcat model predictions
-//' @param model_object a GLMcat model
-//' @param data a data frame with the predictor variables used in the GLMcat model.
-//' @param type The type of prediction to obtain. \code{"prob"} gives probabilities,
-//' \code{"cum.prob"} gives cumulative probabilities and \code{"linear.predict"} gives
-//' the linear predictor.
-//' @rdname predict
-//' @name predict_glmcat
-//' @title predict.glmcat
-//' @export
-//' @examples
-//' data(DisturbedDreams)
-//' mod1 <- GLMcat(formula = Level ~ Age,
-//' data = DisturbedDreams, cdf = "logistic")
-//' predict_glmcat(mod1, data = DisturbedDreams[1:5, ], type = "prob")
-// [[Rcpp::export("predict_glmcat")]]
+
+// [[Rcpp::export(.predict_glmcat)]]
 NumericMatrix predict_glmcat(List model_object,
                              DataFrame data,
                              String type
 ){
 
+  std::string ratio = model_object["ratio"];;
+  List cdf_list = model_object["cdf"];
   String function = model_object["Function"];
-  class cdf dist1;
-  // Environment base_env("package:base");
-  // Function my_rowSums = base_env["rowSums"];
   int N_cats = model_object["N_cats"];
+  int N = data.rows();
+  CharacterVector names_col;
+  List newdataList;
+  class cdf dist1;
   Eigen::MatrixXd coef = model_object["coefficients"];
 
-  List newdataList, cdf_list;
-  std::string ratio;
-  int N ;
-  CharacterVector names_col;
-
-
   if(function == "DiscreteCM"){
-    List arguments = model_object["arguments"];
     ratio = "reference";
-    cdf_list = model_object["cdf"];
+    String predict = "predict";
     N = data.rows() / N_cats;
+    List arguments = model_object["arguments"];
     names_col = arguments["categories_order"];
     newdataList = dist1.select_data_nested(arguments["formula"],
-                                           arguments["case_id"],arguments["alternatives"],
-                                                                         arguments["reference"],arguments["alternative_specific"],
-                                                                                                         data,arguments["intercept"]
-                                             //   ,
-                                             // ratio
+                                           arguments["case_id"],
+                                                    arguments["alternatives"],
+                                                             arguments["reference"],
+                                                                      arguments["alternative_specific"],
+                                                                               data,arguments["intercept"],
+                                                                                             predict
     );
   }else{
-    String ratio1 = model_object["ratio"];
-    ratio = ratio1;
-    cdf_list = model_object["cdf"];
-    N = data.rows();
     names_col = model_object["categories_order"];
-    newdataList = dist1.All_pre_data_NEWDATA(model_object["formula"],
-                                             data,
-                                             model_object["categories_order"],
-                                                         model_object["parallel"],
-                                                                     N_cats);
+    newdataList = dist1.All_pre_data_or(model_object["formula"],
+                                        data,
+                                        model_object["categories_order"],
+                                                    model_object["parallel"],
+                                                                model_object["threshold"],
+                                                                            model_object["ratio"]);
   }
 
-  Eigen::MatrixXd Design_Matrix = newdataList["Design_Matrix"];
-  Eigen::MatrixXd predict_glmcated_eta;
-
-
+  MatrixXd X_EXT = newdataList["Design_Matrix"];
+  Eigen::MatrixXd predict_glmcat = X_EXT * coef;
+  NumericMatrix predict_glmcat1 = wrap(predict_glmcat);
+  NumericMatrix predict_glmcat2(N_cats-1, N ,
+                                predict_glmcat1.begin());
+  NumericMatrix predict_mat = transpose(predict_glmcat2);
   std::string cdf ;
+
   CharacterVector cdf_given = cdf_list[0];
+
 
   std::string cdf_1;
   if(cdf_given[0] == "NaN"){
@@ -679,7 +672,6 @@ NumericMatrix predict_glmcat(List model_object,
     std::string cdf2 = cdf_list[0];
     cdf = cdf2;
   }
-
   double freedom_degrees = 1;
   double mu = 0;
   if(cdf_list.size() == 2){
@@ -691,16 +683,13 @@ NumericMatrix predict_glmcat(List model_object,
   }
 
   Eigen::VectorXd pi;
-
-  Eigen::MatrixXd X_M_i;
   Eigen::MatrixXd pi_total = Eigen::MatrixXd::Zero(N,N_cats-1);
+  Eigen::MatrixXd predict_glmcated_eta;
+  Eigen::MatrixXd X_M_i;
 
   for (int i=0; i < N; i++){
-
-    X_M_i = Design_Matrix.block(i*(N_cats-1) , 0 , N_cats-1 , Design_Matrix.cols());
+    X_M_i = X_EXT.block(i*(N_cats-1) , 0 , N_cats-1 , X_EXT.cols());
     predict_glmcated_eta = X_M_i * coef;
-
-
     if(ratio == "reference"){
       ReferenceF ref;
       // Rcout << cdf << std::endl;
@@ -804,45 +793,39 @@ NumericMatrix predict_glmcat(List model_object,
   pi_total.conservativeResize(pi_total.rows() , N_cats);
   pi_total.col(N_cats-1) = Ones1 - cum_prob1;
 
-  NumericVector predict_glmcat;
-  NumericMatrix predict_mat;
-
   if(type == "prob"){
     predict_glmcat = pi_total;
     predict_mat = wrap(predict_glmcat);
     colnames(predict_mat) = names_col;
-  }else if(type == "linear.predict"){
+  }else if(type == "linear.predictor"){
     names_col.erase(N_cats-1);
-    predict_glmcat = Design_Matrix * coef;
-    NumericMatrix predict_glmcat1( N_cats-1, pi_total.rows() , predict_glmcat.begin());
-    predict_mat = transpose(predict_glmcat1);
     colnames(predict_mat) = names_col;
   }else{
-    Rcpp::stop("Unrecognized type parameter; options are: prob, linear.predict");
+    Rcpp::stop("Unrecognized type parameter; options are: prob, linear.predictor");
   }
   return predict_mat;
 }
 
 
-RCPP_MODULE(GLMcatmodule){
-  Rcpp::function("GLMcat", &GLMcat,
-                 List::create(_["formula"],
-                              _["data"],
-                               _["ratio"] = "reference",
-                               _["cdf"] = R_NaN,
-                               _["parallel"] = CharacterVector::create(NA_STRING),
-                               _["categories_order"] = CharacterVector::create(NA_STRING),
-                               _["ref_category"] = CharacterVector::create(NA_STRING),
-                               _["threshold"] = "standard",
-                               _["control"] = R_NaN,
-                               _["normalization"] = 1.0
-                 ),
-                 "GLMcat models");
-
-  Rcpp::function("predict_glmcat", &predict_glmcat,
-                 List::create(_["model_object"] = R_NaN,
-                              _["data"],
-                               _["type"] = "prob"
-                 ),
-                 "GLMcat model predictions");
-}
+// RCPP_MODULE(GLMcatmodule){
+//   Rcpp::function("GLMcat", &GLMcat,
+//                  List::create(_["formula"],
+//                               _["data"],
+//                                _["ratio"] = "reference",
+//                                _["cdf"] = R_NaN,
+//                                _["parallel"] = CharacterVector::create(NA_STRING),
+//                                _["categories_order"] = CharacterVector::create(NA_STRING),
+//                                _["ref_category"] = CharacterVector::create(NA_STRING),
+//                                _["threshold"] = "standard",
+//                                _["control"] = R_NaN,
+//                                _["normalization"] = 1.0
+//                  ),
+//                  "GLMcat models");
+//
+//   Rcpp::function("predict_glmcat", &predict_glmcat,
+//                  List::create(_["model_object"] = R_NaN,
+//                               _["data"],
+//                                _["type"] = "prob"
+//                  ),
+//                  "GLMcat model predictions");
+// }
