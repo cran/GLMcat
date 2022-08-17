@@ -1,7 +1,11 @@
-This file documents updates and changes in package GLMcat since version
-2021.09-23
+This file documents updates and changes in package GLMcat since version 0.2.4
 
-09-23-2021:
+16-08-2022:
+- Documentation update.
+- New functionality for the step method.
+- Adding options to deal with NAs.
+
+23-09-2021:
 - Documentation update.
 - Added plot, anova, and step methods.
 - Added coefficients normalization option for models.

@@ -1,4 +1,4 @@
-## ---- include = FALSE---------------------------------------------------------
+## -----------------------------------------------------------------------------
 # devtools::load_all()
 library(GLMcat)
 
@@ -7,6 +7,7 @@ data("DisturbedDreams")
 summary(DisturbedDreams)
 
 ## -----------------------------------------------------------------------------
+DisturbedDreams$Level <- as.factor(as.character(DisturbedDreams$Level))
 mod_ref_log_c <- glmcat(
   formula = Level ~ Age, ratio = "reference",
   cdf = "logistic", ref_category = "Very.severe",
@@ -45,21 +46,23 @@ predict(mod_ref_log_c, newdata = DisturbedDreams[ind, ], type = "linear.predicto
 # predict(mod_ref_log_c, newdata = Age, type = "prob")
 
 ## -----------------------------------------------------------------------------
-mod2 <- glmcat(
-  formula = Level ~ Age, cdf = "logistic",
-  parallel = "Age", ref_category = "Very.severe",
-  data = DisturbedDreams
-)
-summary(mod2)
-logLik(mod2)
+# DisturbedDreams$Level <- as.factor(as.character(DisturbedDreams$Level))
+# mod2 <- glmcat(
+#   formula = Level ~ Age, cdf = "logistic",
+#   parallel = "Age", ref_category = "Very.severe",
+#   data = DisturbedDreams
+# )
+# summary(mod2)
+# logLik(mod2)
 
 ## -----------------------------------------------------------------------------
-mod3 <- glmcat(
-  formula = Level ~ Age, ref_category = "Very.severe",
-  data = DisturbedDreams, cdf = list("student",0.5)
-)
-summary(mod3)
-logLik(mod3)
+# DisturbedDreams$Level <- as.factor(as.character(DisturbedDreams$Level))
+# mod3 <- glmcat(
+#   formula = Level ~ Age, ref_category = "Very.severe",
+#   data = DisturbedDreams, cdf = list("student",0.5)
+# )
+# summary(mod3)
+# logLik(mod3)
 
 ## -----------------------------------------------------------------------------
 logLik(mod_ref_log_c) # recall (ref,logit,com)

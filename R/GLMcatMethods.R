@@ -434,8 +434,8 @@ add2 <- function(object, scope, data, scale = 0, test=c("none", "Chisq"),
 #' @param direction the mode of the stepwise search.
 #' @param trace to print the process information.
 #' @param steps the maximum number of steps.
-#' @method step glmcat
 #' @rdname step
+#' @method step glmcat
 #' @usage \method{step}{glmcat}(object, scope, direction, trace, steps)
 #' @exportS3Method
 step.glmcat <- function (object,
@@ -443,7 +443,7 @@ step.glmcat <- function (object,
                          direction = c("both", "backward", "forward"),
                          trace = 1, steps = 1000)
 {
-  data <- object$model
+  data <- object$data
   mydeviance <- function(x, ...) {
     dev <- deviance(x)
     if (!is.null(dev))
