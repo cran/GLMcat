@@ -75,6 +75,9 @@ ref_log_com <- glmcat(formula = Level ~ Age, data = DisturbedDreams,
 \references{
 Peyhardi J, Trottier C, Guédon Y (2015). “A new specification of generalized linear models
  for categorical responses.” \emph{Biometrika}, 102(4), 889–906. doi:10.1093/biomet/asv042.
+ 
+
+León, L., Peyhardi, J., and Trottier, C. (2025). “GLMcat: An R Package for Generalized Linear Models for Categorical Responses.” \emph{Journal of Statistical Software}, 114(9), 1–41. doi:10.18637/jss.v114.i09.
 }
 \seealso{
 \code{\link{summary.glmcat}}

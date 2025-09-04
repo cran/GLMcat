@@ -1,0 +1,20 @@
+bibentry(bibtype = "Article",
+  title        = "{GLMcat}: An {R} Package for Generalized Linear Models for Categorical Responses",
+  author       = c(person(given = "Lorena",
+                          family = "Le{\\'o}n",
+                          email = "ylorenaleonv@gmail.com"),
+                   person(given = "Jean",
+                          family = "Peyhardi",
+                          email = "jean.peyhardi@umontpellier.fr"),
+                   person(given = "Catherine",
+                          family = "Trottier",
+                          email = "catherine.trottier@umontpellier.fr")),
+  journal      = "Journal of Statistical Software",
+  year         = "2025",
+  volume       = "114",
+  number       = "9",
+  pages        = "1--41",
+  doi          = "10.18637/jss.v114.i09",
+  header       = "To cite GLMcat in publications use:"
+)
+

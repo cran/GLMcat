@@ -100,3 +100,6 @@ discrete_cm(formula = choice ~ hinc[air] + psize[air] + gc + ttme,
             alternative_specific = c("gc", "ttme"),
             data = TravelChoice)
 }
+\references{
+León, L., Peyhardi, J., and Trottier, C. (2025). “GLMcat: An R Package for Generalized Linear Models for Categorical Responses.” \emph{Journal of Statistical Software}, 114(9), 1–41. doi:10.18637/jss.v114.i09.
+}

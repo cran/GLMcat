@@ -74,8 +74,8 @@ logLik(mod_adj_log_c)
 summary(mod_adj_log_c)
 
 ## ----eval=FALSE, message=FALSE, warning=FALSE, include=FALSE, results='tex'----
-#  library(xtable)
-#  print(xtableMatharray(matrix(c(1, -1, 0, 0, 1, -1, 0, 0, 1), nrow = 3)), type = "latex")
+# library(xtable)
+# print(xtableMatharray(matrix(c(1, -1, 0, 0, 1, -1, 0, 0, 1), nrow = 3)), type = "latex")
 
 ## -----------------------------------------------------------------------------
 mod_adj_cau_c <- glmcat(
